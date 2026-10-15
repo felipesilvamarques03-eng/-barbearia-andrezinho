@@ -1,0 +1,3088 @@
+<title>Demonstração Fila de Barbearia</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#0e0e10;--card:#18181b;--line:#2a2a2f;--gold:#c9a24b;--gold2:#e6c878;--txt:#f2f2f2;--mut:#9a9aa3;--red:#d9534f;--green:#4caf7a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh;display:flex;justify-content:center}
+#app{width:100%;max-width:480px;padding:24px 18px 60px}
+#app.wide{max-width:760px}
+h1{font-size:28px;letter-spacing:2px;text-transform:uppercase;color:var(--gold2);text-align:center}
+h2{font-size:18px;margin-bottom:12px}
+.logo{text-align:center;margin:40px 0 8px;font-size:54px}
+.sub{color:var(--mut);text-align:center;margin:8px 0 32px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
+label{display:block;font-size:13px;color:var(--mut);margin:12px 0 6px}
+input,textarea,select{width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:#101013;color:var(--txt);font-size:16px;outline:none;font-family:inherit}
+textarea{resize:vertical;line-height:1.5}
+input:focus,textarea:focus,select:focus{border-color:var(--gold)}
+button{cursor:pointer;border:0;border-radius:999px;padding:14px 22px;font-size:16px;font-weight:600;transition:.2s}
+.btn{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#111;width:100%;margin-top:18px}
+.btn:active{transform:scale(.98)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+.sm{padding:9px 14px;font-size:14px;width:auto;margin:0}
+.red{background:var(--red);color:#fff}.green{background:var(--green);color:#0e0e10}
+.big{font-size:64px;font-weight:700;color:var(--gold2);text-align:center;line-height:1}
+.kbig{font-size:34px;font-weight:700;color:var(--gold2)}
+.mut{color:var(--mut);font-size:14px}.center{text-align:center}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pos{width:34px;height:34px;border-radius:50%;background:var(--gold);color:#111;font-weight:700;display:grid;place-items:center;flex:none}
+.item{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border:0}.grow{flex:1;min-width:0}
+.name{font-weight:600}.timer{font-variant-numeric:tabular-nums;color:var(--gold2);font-weight:700}
+.timer.late{color:var(--red)}
+.tag{font-size:12px;padding:3px 9px;border-radius:999px;background:#2a2a2f;color:var(--gold2);white-space:nowrap}
+.tag.ok{background:rgba(76,175,122,.18);color:#b8f0d0}
+.tag.warn{background:rgba(230,200,120,.18);color:var(--gold2)}
+.tag.bad{background:rgba(217,83,79,.2);color:#f5b3b0}
+.alert{background:rgba(76,175,122,.15);border:1px solid var(--green);color:#b8f0d0;padding:16px;border-radius:14px;text-align:center;font-weight:600}
+.back{background:none;color:var(--mut);padding:6px 0;font-size:14px;margin-bottom:10px}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.err{color:var(--red);font-size:13px;margin-top:10px;min-height:16px}
+.tabs{display:flex;gap:8px;overflow-x:auto;margin:14px 0}
+.tab{background:#1f1f24;color:var(--mut);padding:10px 16px;border-radius:999px;font-size:15px;white-space:nowrap}
+.tab.on{background:var(--gold);color:#111}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+.kpi b{display:block;font-size:22px;color:var(--gold2);margin:2px 0}
+.kpi small{color:var(--mut);display:block;font-size:12px}
+.up{color:var(--green)}.down{color:var(--red)}
+.bars{display:flex;align-items:flex-end;gap:5px;height:170px;margin-top:8px}
+.bcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:4px;min-width:0}
+.bar{width:100%;background:linear-gradient(var(--gold2),var(--gold));border-radius:6px 6px 0 0;opacity:.75}
+.bar.hoje{opacity:1}
+.bv{font-size:10px;color:var(--mut)}.bl{font-size:11px;color:var(--mut)}
+.trow{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.trow:last-child{border:0}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.chip{background:#1f1f24;color:var(--txt);border:1px solid var(--line);padding:9px 14px;font-size:14px}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.sheet{background:var(--card);width:100%;max-width:480px;border-radius:22px 22px 0 0;padding:22px;border:1px solid var(--line);max-height:92vh;overflow-y:auto}
+.banner{border-radius:14px;padding:12px 14px;margin:10px 0;font-size:14px;line-height:1.4}
+.banner.info{background:rgba(201,162,75,.14);border:1px solid var(--gold);color:var(--gold2)}
+.banner.alerta{background:rgba(217,83,79,.15);border:1px solid var(--red);color:#f5b3b0}
+.seg{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.seg button{background:#1f1f24;color:var(--txt);border:1px solid var(--line);padding:10px 16px;font-size:15px}
+.seg button.on{background:var(--gold);color:#111;border-color:var(--gold)}
+.qr{background:#fff;border-radius:16px;padding:14px;width:min(260px,100%);margin:12px auto;display:block}
+.qr svg{display:block;width:100%;height:auto}
+.copia{font-family:ui-monospace,Menlo,monospace;font-size:11px;word-break:break-all;color:var(--mut);background:#101013;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.planos{display:grid;gap:10px}
+.plano{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.plano.atual{border-color:var(--gold)}
+.plano ul{margin:8px 0 0 18px;color:var(--mut);font-size:14px;line-height:1.6}
+.preco{font-size:26px;font-weight:700;color:var(--gold2)}
+.chk{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px;color:var(--txt)}
+.chk input{width:auto;margin-top:3px}
+.neg{color:var(--red)}.pos{color:var(--green)}
+.link-box{background:linear-gradient(135deg,rgba(201,162,75,.16),rgba(201,162,75,.05));border:1px solid var(--gold);border-radius:16px;padding:14px;margin:12px 0}
+.link-box b{display:block;font-size:15px;margin-bottom:2px}
+.link-box .mut{font-size:13px}
+.link-url{font-family:ui-monospace,Menlo,monospace;font-size:13px;background:#101013;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;word-break:break-all;user-select:all}
+.link-acoes{display:flex;gap:8px;flex-wrap:wrap}
+.link-acoes a,.link-acoes button{flex:1 1 140px;text-align:center;text-decoration:none;border-radius:999px;padding:10px 14px;font-size:14px;font-weight:600}
+.planos-pub{display:grid;gap:12px;margin:16px 0}
+.plano-pub{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:16px;cursor:pointer;text-align:left;color:var(--txt);width:100%}
+.plano-pub.on{border-color:var(--gold);background:rgba(201,162,75,.08)}
+.plano-pub ul{margin:8px 0 0 18px;color:var(--mut);font-size:14px;line-height:1.6}
+details.priv{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px;font-size:13px;color:var(--mut);line-height:1.5}
+details.priv summary{cursor:pointer;color:var(--txt);font-weight:600}
+details.priv p{margin-top:8px}
+
+body{flex-direction:column;align-items:center;justify-content:flex-start}
+#demo-bar{position:sticky;top:0;z-index:20;width:100%;background:#1b160c;border-bottom:1px solid #4a3c1c;padding:8px max(12px,env(safe-area-inset-right,0px)) 8px max(12px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:6px}
+.demo-top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:12px;color:#c9b88f}
+.demo-top b{color:var(--gold2);letter-spacing:2px}
+.demo-nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.demo-nav button{background:#26211a;color:var(--txt);border:1px solid #3a3226;padding:7px 12px;font-size:13px;font-weight:600;white-space:nowrap;border-radius:999px}
+.demo-nav button.on{background:var(--gold);color:#111;border-color:var(--gold)}
+.demo-senhas{font-size:12px;color:#c9b88f}
+.demo-senhas summary{cursor:pointer;color:var(--txt);font-weight:600}
+.demo-senhas table{border-collapse:collapse;margin:6px 0;width:100%}
+.demo-senhas td,.demo-senhas th{border-top:1px solid #3a3226;padding:5px 6px;text-align:left;vertical-align:top}
+.demo-senhas code{color:var(--gold2);font-size:12px}
+</style>
+<div id="demo-bar">
+  <div class="demo-top"><b>DEMONSTRAÇÃO</b><span>dados fictícios · nada é salvo de verdade</span></div>
+  <div class="demo-nav">
+    <button data-ir="#/andrezinho">Cliente</button><button data-ir="#/entrar">Entrar</button><button data-ir="#/planos">Planos</button>
+    <button data-ir="#/andrezinho/dono">Dono</button><button data-ir="#/andrezinho/barbeiro">Barbeiro</button><button data-ir="#/plataforma">Administrador</button>
+  </div>
+  <details class="demo-senhas"><summary>Senhas de teste</summary>
+    <table><tr><th>Barbearia (endereço)</th><th>Dono</th><th>Barbeiro</th></tr>
+      <tr><td>Andrezinho · Expert, isenta<br><code>andrezinho</code></td><td><code>dono123</code></td><td><code>barb123</code></td></tr>
+      <tr><td>João · Pro, em teste<br><code>barbearia-do-joao</code></td><td><code>joao123</code></td><td><code>barbjoao1</code></td></tr>
+      <tr><td>Centro · Basic, vencida<br><code>barbearia-centro</code></td><td><code>centro123</code></td><td><code>barbcentro1</code></td></tr>
+      <tr><td>Administrador</td><td colspan="2"><code>admin123</code></td></tr></table>
+    <p>No site real, o Pix, o WhatsApp e o Mercado Pago funcionam de verdade; aqui eles são simulados.</p>
+  </details>
+</div>
+<div id="app"></div>
+<div id="modal"></div>
+<script>
+/* QRCode for JavaScript. Copyright (c) 2009 Kazuhiko Arase. MIT license. Empacotado a partir do qrcode-terminal 0.12.0. */
+const QRLib = (function(){ const M = {};
+  const R = n => { n = n.replace(/^\.\//, "").replace(/\.js$/, ""); const e = M[n];
+    if (!e.done) { e.done = true; const m = { exports: {} }; e.v = m.exports; e.fn(m, m.exports, R); e.v = m.exports; } return e.v; };
+M["QR8bitByte"] = { fn: function(module, exports, require){
+var QRMode = require('./QRMode');
+
+function QR8bitByte(data) {
+	this.mode = QRMode.MODE_8BIT_BYTE;
+	this.data = data;
+}
+
+QR8bitByte.prototype = {
+
+	getLength : function() {
+		return this.data.length;
+	},
+	
+	write : function(buffer) {
+		for (var i = 0; i < this.data.length; i++) {
+			// not JIS ...
+			buffer.put(this.data.charCodeAt(i), 8);
+		}
+	}
+};
+
+module.exports = QR8bitByte;
+
+} };
+M["QRBitBuffer"] = { fn: function(module, exports, require){
+function QRBitBuffer() {
+	this.buffer = [];
+	this.length = 0;
+}
+
+QRBitBuffer.prototype = {
+
+	get : function(index) {
+		var bufIndex = Math.floor(index / 8);
+		return ( (this.buffer[bufIndex] >>> (7 - index % 8) ) & 1) == 1;
+	},
+	
+	put : function(num, length) {
+		for (var i = 0; i < length; i++) {
+			this.putBit( ( (num >>> (length - i - 1) ) & 1) == 1);
+		}
+	},
+	
+	getLengthInBits : function() {
+		return this.length;
+	},
+	
+	putBit : function(bit) {
+	
+		var bufIndex = Math.floor(this.length / 8);
+		if (this.buffer.length <= bufIndex) {
+			this.buffer.push(0);
+		}
+	
+		if (bit) {
+			this.buffer[bufIndex] |= (0x80 >>> (this.length % 8) );
+		}
+	
+		this.length++;
+	}
+};
+
+module.exports = QRBitBuffer;
+
+} };
+M["QRErrorCorrectLevel"] = { fn: function(module, exports, require){
+module.exports = {
+	L : 1,
+	M : 0,
+	Q : 3,
+	H : 2
+};
+
+
+} };
+M["QRMaskPattern"] = { fn: function(module, exports, require){
+module.exports = {
+	PATTERN000 : 0,
+	PATTERN001 : 1,
+	PATTERN010 : 2,
+	PATTERN011 : 3,
+	PATTERN100 : 4,
+	PATTERN101 : 5,
+	PATTERN110 : 6,
+	PATTERN111 : 7
+};
+
+} };
+M["QRMath"] = { fn: function(module, exports, require){
+var QRMath = {
+
+	glog : function(n) {
+	
+		if (n < 1) {
+			throw new Error("glog(" + n + ")");
+		}
+		
+		return QRMath.LOG_TABLE[n];
+	},
+	
+	gexp : function(n) {
+	
+		while (n < 0) {
+			n += 255;
+		}
+	
+		while (n >= 256) {
+			n -= 255;
+		}
+	
+		return QRMath.EXP_TABLE[n];
+	},
+	
+	EXP_TABLE : new Array(256),
+	
+	LOG_TABLE : new Array(256)
+
+};
+	
+for (var i = 0; i < 8; i++) {
+	QRMath.EXP_TABLE[i] = 1 << i;
+}
+for (var i = 8; i < 256; i++) {
+	QRMath.EXP_TABLE[i] = QRMath.EXP_TABLE[i - 4]
+		^ QRMath.EXP_TABLE[i - 5]
+		^ QRMath.EXP_TABLE[i - 6]
+		^ QRMath.EXP_TABLE[i - 8];
+}
+for (var i = 0; i < 255; i++) {
+	QRMath.LOG_TABLE[QRMath.EXP_TABLE[i] ] = i;
+}
+
+module.exports = QRMath;
+
+} };
+M["QRMode"] = { fn: function(module, exports, require){
+module.exports = {
+    MODE_NUMBER :       1 << 0,
+    MODE_ALPHA_NUM :    1 << 1,
+    MODE_8BIT_BYTE :    1 << 2,
+    MODE_KANJI :        1 << 3
+};
+
+} };
+M["QRPolynomial"] = { fn: function(module, exports, require){
+var QRMath = require('./QRMath');
+
+function QRPolynomial(num, shift) {
+	if (num.length === undefined) {
+		throw new Error(num.length + "/" + shift);
+	}
+
+	var offset = 0;
+
+	while (offset < num.length && num[offset] === 0) {
+		offset++;
+	}
+
+	this.num = new Array(num.length - offset + shift);
+	for (var i = 0; i < num.length - offset; i++) {
+		this.num[i] = num[i + offset];
+	}
+}
+
+QRPolynomial.prototype = {
+
+	get : function(index) {
+		return this.num[index];
+	},
+	
+	getLength : function() {
+		return this.num.length;
+	},
+	
+	multiply : function(e) {
+	
+		var num = new Array(this.getLength() + e.getLength() - 1);
+	
+		for (var i = 0; i < this.getLength(); i++) {
+			for (var j = 0; j < e.getLength(); j++) {
+				num[i + j] ^= QRMath.gexp(QRMath.glog(this.get(i) ) + QRMath.glog(e.get(j) ) );
+			}
+		}
+	
+		return new QRPolynomial(num, 0);
+	},
+	
+	mod : function(e) {
+	
+		if (this.getLength() - e.getLength() < 0) {
+			return this;
+		}
+	
+		var ratio = QRMath.glog(this.get(0) ) - QRMath.glog(e.get(0) );
+	
+		var num = new Array(this.getLength() );
+		
+		for (var i = 0; i < this.getLength(); i++) {
+			num[i] = this.get(i);
+		}
+		
+		for (var x = 0; x < e.getLength(); x++) {
+			num[x] ^= QRMath.gexp(QRMath.glog(e.get(x) ) + ratio);
+		}
+	
+		// recursive call
+		return new QRPolynomial(num, 0).mod(e);
+	}
+};
+
+module.exports = QRPolynomial;
+
+} };
+M["QRRSBlock"] = { fn: function(module, exports, require){
+var QRErrorCorrectLevel = require('./QRErrorCorrectLevel');
+
+function QRRSBlock(totalCount, dataCount) {
+	this.totalCount = totalCount;
+	this.dataCount  = dataCount;
+}
+
+QRRSBlock.RS_BLOCK_TABLE = [
+
+	// L
+	// M
+	// Q
+	// H
+
+	// 1
+	[1, 26, 19],
+	[1, 26, 16],
+	[1, 26, 13],
+	[1, 26, 9],
+	
+	// 2
+	[1, 44, 34],
+	[1, 44, 28],
+	[1, 44, 22],
+	[1, 44, 16],
+
+	// 3
+	[1, 70, 55],
+	[1, 70, 44],
+	[2, 35, 17],
+	[2, 35, 13],
+
+	// 4		
+	[1, 100, 80],
+	[2, 50, 32],
+	[2, 50, 24],
+	[4, 25, 9],
+	
+	// 5
+	[1, 134, 108],
+	[2, 67, 43],
+	[2, 33, 15, 2, 34, 16],
+	[2, 33, 11, 2, 34, 12],
+	
+	// 6
+	[2, 86, 68],
+	[4, 43, 27],
+	[4, 43, 19],
+	[4, 43, 15],
+	
+	// 7		
+	[2, 98, 78],
+	[4, 49, 31],
+	[2, 32, 14, 4, 33, 15],
+	[4, 39, 13, 1, 40, 14],
+	
+	// 8
+	[2, 121, 97],
+	[2, 60, 38, 2, 61, 39],
+	[4, 40, 18, 2, 41, 19],
+	[4, 40, 14, 2, 41, 15],
+	
+	// 9
+	[2, 146, 116],
+	[3, 58, 36, 2, 59, 37],
+	[4, 36, 16, 4, 37, 17],
+	[4, 36, 12, 4, 37, 13],
+	
+	// 10		
+	[2, 86, 68, 2, 87, 69],
+	[4, 69, 43, 1, 70, 44],
+	[6, 43, 19, 2, 44, 20],
+	[6, 43, 15, 2, 44, 16],
+
+	// 11
+	[4, 101, 81],
+	[1, 80, 50, 4, 81, 51],
+	[4, 50, 22, 4, 51, 23],
+	[3, 36, 12, 8, 37, 13],
+
+	// 12
+	[2, 116, 92, 2, 117, 93],
+	[6, 58, 36, 2, 59, 37],
+	[4, 46, 20, 6, 47, 21],
+	[7, 42, 14, 4, 43, 15],
+
+	// 13
+	[4, 133, 107],
+	[8, 59, 37, 1, 60, 38],
+	[8, 44, 20, 4, 45, 21],
+	[12, 33, 11, 4, 34, 12],
+
+	// 14
+	[3, 145, 115, 1, 146, 116],
+	[4, 64, 40, 5, 65, 41],
+	[11, 36, 16, 5, 37, 17],
+	[11, 36, 12, 5, 37, 13],
+
+	// 15
+	[5, 109, 87, 1, 110, 88],
+	[5, 65, 41, 5, 66, 42],
+	[5, 54, 24, 7, 55, 25],
+	[11, 36, 12],
+
+	// 16
+	[5, 122, 98, 1, 123, 99],
+	[7, 73, 45, 3, 74, 46],
+	[15, 43, 19, 2, 44, 20],
+	[3, 45, 15, 13, 46, 16],
+
+	// 17
+	[1, 135, 107, 5, 136, 108],
+	[10, 74, 46, 1, 75, 47],
+	[1, 50, 22, 15, 51, 23],
+	[2, 42, 14, 17, 43, 15],
+
+	// 18
+	[5, 150, 120, 1, 151, 121],
+	[9, 69, 43, 4, 70, 44],
+	[17, 50, 22, 1, 51, 23],
+	[2, 42, 14, 19, 43, 15],
+
+	// 19
+	[3, 141, 113, 4, 142, 114],
+	[3, 70, 44, 11, 71, 45],
+	[17, 47, 21, 4, 48, 22],
+	[9, 39, 13, 16, 40, 14],
+
+	// 20
+	[3, 135, 107, 5, 136, 108],
+	[3, 67, 41, 13, 68, 42],
+	[15, 54, 24, 5, 55, 25],
+	[15, 43, 15, 10, 44, 16],
+
+	// 21
+	[4, 144, 116, 4, 145, 117],
+	[17, 68, 42],
+	[17, 50, 22, 6, 51, 23],
+	[19, 46, 16, 6, 47, 17],
+
+	// 22
+	[2, 139, 111, 7, 140, 112],
+	[17, 74, 46],
+	[7, 54, 24, 16, 55, 25],
+	[34, 37, 13],
+
+	// 23
+	[4, 151, 121, 5, 152, 122],
+	[4, 75, 47, 14, 76, 48],
+	[11, 54, 24, 14, 55, 25],
+	[16, 45, 15, 14, 46, 16],
+
+	// 24
+	[6, 147, 117, 4, 148, 118],
+	[6, 73, 45, 14, 74, 46],
+	[11, 54, 24, 16, 55, 25],
+	[30, 46, 16, 2, 47, 17],
+
+	// 25
+	[8, 132, 106, 4, 133, 107],
+	[8, 75, 47, 13, 76, 48],
+	[7, 54, 24, 22, 55, 25],
+	[22, 45, 15, 13, 46, 16],
+
+	// 26
+	[10, 142, 114, 2, 143, 115],
+	[19, 74, 46, 4, 75, 47],
+	[28, 50, 22, 6, 51, 23],
+	[33, 46, 16, 4, 47, 17],
+
+	// 27
+	[8, 152, 122, 4, 153, 123],
+	[22, 73, 45, 3, 74, 46],
+	[8, 53, 23, 26, 54, 24],
+	[12, 45, 15, 28, 46, 16],
+
+	// 28
+	[3, 147, 117, 10, 148, 118],
+	[3, 73, 45, 23, 74, 46],
+	[4, 54, 24, 31, 55, 25],
+	[11, 45, 15, 31, 46, 16],
+
+	// 29
+	[7, 146, 116, 7, 147, 117],
+	[21, 73, 45, 7, 74, 46],
+	[1, 53, 23, 37, 54, 24],
+	[19, 45, 15, 26, 46, 16],
+
+	// 30
+	[5, 145, 115, 10, 146, 116],
+	[19, 75, 47, 10, 76, 48],
+	[15, 54, 24, 25, 55, 25],
+	[23, 45, 15, 25, 46, 16],
+
+	// 31
+	[13, 145, 115, 3, 146, 116],
+	[2, 74, 46, 29, 75, 47],
+	[42, 54, 24, 1, 55, 25],
+	[23, 45, 15, 28, 46, 16],
+
+	// 32
+	[17, 145, 115],
+	[10, 74, 46, 23, 75, 47],
+	[10, 54, 24, 35, 55, 25],
+	[19, 45, 15, 35, 46, 16],
+
+	// 33
+	[17, 145, 115, 1, 146, 116],
+	[14, 74, 46, 21, 75, 47],
+	[29, 54, 24, 19, 55, 25],
+	[11, 45, 15, 46, 46, 16],
+
+	// 34
+	[13, 145, 115, 6, 146, 116],
+	[14, 74, 46, 23, 75, 47],
+	[44, 54, 24, 7, 55, 25],
+	[59, 46, 16, 1, 47, 17],
+
+	// 35
+	[12, 151, 121, 7, 152, 122],
+	[12, 75, 47, 26, 76, 48],
+	[39, 54, 24, 14, 55, 25],
+	[22, 45, 15, 41, 46, 16],
+
+	// 36
+	[6, 151, 121, 14, 152, 122],
+	[6, 75, 47, 34, 76, 48],
+	[46, 54, 24, 10, 55, 25],
+	[2, 45, 15, 64, 46, 16],
+
+	// 37
+	[17, 152, 122, 4, 153, 123],
+	[29, 74, 46, 14, 75, 47],
+	[49, 54, 24, 10, 55, 25],
+	[24, 45, 15, 46, 46, 16],
+
+	// 38
+	[4, 152, 122, 18, 153, 123],
+	[13, 74, 46, 32, 75, 47],
+	[48, 54, 24, 14, 55, 25],
+	[42, 45, 15, 32, 46, 16],
+
+	// 39
+	[20, 147, 117, 4, 148, 118],
+	[40, 75, 47, 7, 76, 48],
+	[43, 54, 24, 22, 55, 25],
+	[10, 45, 15, 67, 46, 16],
+
+	// 40
+	[19, 148, 118, 6, 149, 119],
+	[18, 75, 47, 31, 76, 48],
+	[34, 54, 24, 34, 55, 25],
+	[20, 45, 15, 61, 46, 16]
+];
+
+QRRSBlock.getRSBlocks = function(typeNumber, errorCorrectLevel) {
+	
+	var rsBlock = QRRSBlock.getRsBlockTable(typeNumber, errorCorrectLevel);
+	
+	if (rsBlock === undefined) {
+		throw new Error("bad rs block @ typeNumber:" + typeNumber + "/errorCorrectLevel:" + errorCorrectLevel);
+	}
+
+	var length = rsBlock.length / 3;
+	
+	var list = [];
+	
+	for (var i = 0; i < length; i++) {
+
+		var count = rsBlock[i * 3 + 0];
+		var totalCount = rsBlock[i * 3 + 1];
+		var dataCount  = rsBlock[i * 3 + 2];
+
+		for (var j = 0; j < count; j++) {
+			list.push(new QRRSBlock(totalCount, dataCount) );	
+		}
+	}
+	
+	return list;
+};
+
+QRRSBlock.getRsBlockTable = function(typeNumber, errorCorrectLevel) {
+
+	switch(errorCorrectLevel) {
+	case QRErrorCorrectLevel.L :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0];
+	case QRErrorCorrectLevel.M :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 1];
+	case QRErrorCorrectLevel.Q :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 2];
+	case QRErrorCorrectLevel.H :
+		return QRRSBlock.RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 3];
+	default :
+		return undefined;
+	}
+};
+
+module.exports = QRRSBlock;
+
+} };
+M["QRUtil"] = { fn: function(module, exports, require){
+var QRMode = require('./QRMode');
+var QRPolynomial = require('./QRPolynomial');
+var QRMath = require('./QRMath');
+var QRMaskPattern = require('./QRMaskPattern');
+
+var QRUtil = {
+
+    PATTERN_POSITION_TABLE : [
+        [],
+        [6, 18],
+        [6, 22],
+        [6, 26],
+        [6, 30],
+        [6, 34],
+        [6, 22, 38],
+        [6, 24, 42],
+        [6, 26, 46],
+        [6, 28, 50],
+        [6, 30, 54],        
+        [6, 32, 58],
+        [6, 34, 62],
+        [6, 26, 46, 66],
+        [6, 26, 48, 70],
+        [6, 26, 50, 74],
+        [6, 30, 54, 78],
+        [6, 30, 56, 82],
+        [6, 30, 58, 86],
+        [6, 34, 62, 90],
+        [6, 28, 50, 72, 94],
+        [6, 26, 50, 74, 98],
+        [6, 30, 54, 78, 102],
+        [6, 28, 54, 80, 106],
+        [6, 32, 58, 84, 110],
+        [6, 30, 58, 86, 114],
+        [6, 34, 62, 90, 118],
+        [6, 26, 50, 74, 98, 122],
+        [6, 30, 54, 78, 102, 126],
+        [6, 26, 52, 78, 104, 130],
+        [6, 30, 56, 82, 108, 134],
+        [6, 34, 60, 86, 112, 138],
+        [6, 30, 58, 86, 114, 142],
+        [6, 34, 62, 90, 118, 146],
+        [6, 30, 54, 78, 102, 126, 150],
+        [6, 24, 50, 76, 102, 128, 154],
+        [6, 28, 54, 80, 106, 132, 158],
+        [6, 32, 58, 84, 110, 136, 162],
+        [6, 26, 54, 82, 110, 138, 166],
+        [6, 30, 58, 86, 114, 142, 170]
+    ],
+
+    G15 : (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0),
+    G18 : (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | (1 << 0),
+    G15_MASK : (1 << 14) | (1 << 12) | (1 << 10)    | (1 << 4) | (1 << 1),
+
+    getBCHTypeInfo : function(data) {
+        var d = data << 10;
+        while (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G15) >= 0) {
+            d ^= (QRUtil.G15 << (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G15) ) );    
+        }
+        return ( (data << 10) | d) ^ QRUtil.G15_MASK;
+    },
+
+    getBCHTypeNumber : function(data) {
+        var d = data << 12;
+        while (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G18) >= 0) {
+            d ^= (QRUtil.G18 << (QRUtil.getBCHDigit(d) - QRUtil.getBCHDigit(QRUtil.G18) ) );    
+        }
+        return (data << 12) | d;
+    },
+
+    getBCHDigit : function(data) {
+
+        var digit = 0;
+
+        while (data !== 0) {
+            digit++;
+            data >>>= 1;
+        }
+
+        return digit;
+    },
+
+    getPatternPosition : function(typeNumber) {
+        return QRUtil.PATTERN_POSITION_TABLE[typeNumber - 1];
+    },
+
+    getMask : function(maskPattern, i, j) {
+        
+        switch (maskPattern) {
+            
+        case QRMaskPattern.PATTERN000 : return (i + j) % 2 === 0;
+        case QRMaskPattern.PATTERN001 : return i % 2 === 0;
+        case QRMaskPattern.PATTERN010 : return j % 3 === 0;
+        case QRMaskPattern.PATTERN011 : return (i + j) % 3 === 0;
+        case QRMaskPattern.PATTERN100 : return (Math.floor(i / 2) + Math.floor(j / 3) ) % 2 === 0;
+        case QRMaskPattern.PATTERN101 : return (i * j) % 2 + (i * j) % 3 === 0;
+        case QRMaskPattern.PATTERN110 : return ( (i * j) % 2 + (i * j) % 3) % 2 === 0;
+        case QRMaskPattern.PATTERN111 : return ( (i * j) % 3 + (i + j) % 2) % 2 === 0;
+
+        default :
+            throw new Error("bad maskPattern:" + maskPattern);
+        }
+    },
+
+    getErrorCorrectPolynomial : function(errorCorrectLength) {
+
+        var a = new QRPolynomial([1], 0);
+
+        for (var i = 0; i < errorCorrectLength; i++) {
+            a = a.multiply(new QRPolynomial([1, QRMath.gexp(i)], 0) );
+        }
+
+        return a;
+    },
+
+    getLengthInBits : function(mode, type) {
+
+        if (1 <= type && type < 10) {
+
+            // 1 - 9
+
+            switch(mode) {
+            case QRMode.MODE_NUMBER     : return 10;
+            case QRMode.MODE_ALPHA_NUM  : return 9;
+            case QRMode.MODE_8BIT_BYTE  : return 8;
+            case QRMode.MODE_KANJI      : return 8;
+            default :
+                throw new Error("mode:" + mode);
+            }
+
+        } else if (type < 27) {
+
+            // 10 - 26
+
+            switch(mode) {
+            case QRMode.MODE_NUMBER     : return 12;
+            case QRMode.MODE_ALPHA_NUM  : return 11;
+            case QRMode.MODE_8BIT_BYTE  : return 16;
+            case QRMode.MODE_KANJI      : return 10;
+            default :
+                throw new Error("mode:" + mode);
+            }
+
+        } else if (type < 41) {
+
+            // 27 - 40
+
+            switch(mode) {
+            case QRMode.MODE_NUMBER     : return 14;
+            case QRMode.MODE_ALPHA_NUM  : return 13;
+            case QRMode.MODE_8BIT_BYTE  : return 16;
+            case QRMode.MODE_KANJI      : return 12;
+            default :
+                throw new Error("mode:" + mode);
+            }
+
+        } else {
+            throw new Error("type:" + type);
+        }
+    },
+
+    getLostPoint : function(qrCode) {
+        
+        var moduleCount = qrCode.getModuleCount();
+        var lostPoint = 0;
+        var row = 0; 
+        var col = 0;
+
+        
+        // LEVEL1
+        
+        for (row = 0; row < moduleCount; row++) {
+
+            for (col = 0; col < moduleCount; col++) {
+
+                var sameCount = 0;
+                var dark = qrCode.isDark(row, col);
+
+                for (var r = -1; r <= 1; r++) {
+
+                    if (row + r < 0 || moduleCount <= row + r) {
+                        continue;
+                    }
+
+                    for (var c = -1; c <= 1; c++) {
+
+                        if (col + c < 0 || moduleCount <= col + c) {
+                            continue;
+                        }
+
+                        if (r === 0 && c === 0) {
+                            continue;
+                        }
+
+                        if (dark === qrCode.isDark(row + r, col + c) ) {
+                            sameCount++;
+                        }
+                    }
+                }
+
+                if (sameCount > 5) {
+                    lostPoint += (3 + sameCount - 5);
+                }
+            }
+        }
+
+        // LEVEL2
+
+        for (row = 0; row < moduleCount - 1; row++) {
+            for (col = 0; col < moduleCount - 1; col++) {
+                var count = 0;
+                if (qrCode.isDark(row,     col    ) ) count++;
+                if (qrCode.isDark(row + 1, col    ) ) count++;
+                if (qrCode.isDark(row,     col + 1) ) count++;
+                if (qrCode.isDark(row + 1, col + 1) ) count++;
+                if (count === 0 || count === 4) {
+                    lostPoint += 3;
+                }
+            }
+        }
+
+        // LEVEL3
+
+        for (row = 0; row < moduleCount; row++) {
+            for (col = 0; col < moduleCount - 6; col++) {
+                if (qrCode.isDark(row, col) && 
+                        !qrCode.isDark(row, col + 1) && 
+                         qrCode.isDark(row, col + 2) && 
+                         qrCode.isDark(row, col + 3) && 
+                         qrCode.isDark(row, col + 4) && 
+                        !qrCode.isDark(row, col + 5) && 
+                         qrCode.isDark(row, col + 6) ) {
+                    lostPoint += 40;
+                }
+            }
+        }
+
+        for (col = 0; col < moduleCount; col++) {
+            for (row = 0; row < moduleCount - 6; row++) {
+                if (qrCode.isDark(row, col) &&
+                        !qrCode.isDark(row + 1, col) &&
+                         qrCode.isDark(row + 2, col) &&
+                         qrCode.isDark(row + 3, col) &&
+                         qrCode.isDark(row + 4, col) &&
+                        !qrCode.isDark(row + 5, col) &&
+                         qrCode.isDark(row + 6, col) ) {
+                    lostPoint += 40;
+                }
+            }
+        }
+
+        // LEVEL4
+        
+        var darkCount = 0;
+
+        for (col = 0; col < moduleCount; col++) {
+            for (row = 0; row < moduleCount; row++) {
+                if (qrCode.isDark(row, col) ) {
+                    darkCount++;
+                }
+            }
+        }
+        
+        var ratio = Math.abs(100 * darkCount / moduleCount / moduleCount - 50) / 5;
+        lostPoint += ratio * 10;
+
+        return lostPoint;       
+    }
+
+};
+
+module.exports = QRUtil;
+
+} };
+M["index"] = { fn: function(module, exports, require){
+//---------------------------------------------------------------------
+// QRCode for JavaScript
+//
+// Copyright (c) 2009 Kazuhiko Arase
+//
+// URL: http://www.d-project.com/
+//
+// Licensed under the MIT license:
+//   http://www.opensource.org/licenses/mit-license.php
+//
+// The word "QR Code" is registered trademark of 
+// DENSO WAVE INCORPORATED
+//   http://www.denso-wave.com/qrcode/faqpatent-e.html
+//
+//---------------------------------------------------------------------
+// Modified to work in node for this project (and some refactoring)
+//---------------------------------------------------------------------
+
+var QR8bitByte = require('./QR8bitByte');
+var QRUtil = require('./QRUtil');
+var QRPolynomial = require('./QRPolynomial');
+var QRRSBlock = require('./QRRSBlock');
+var QRBitBuffer = require('./QRBitBuffer');
+
+function QRCode(typeNumber, errorCorrectLevel) {
+	this.typeNumber = typeNumber;
+	this.errorCorrectLevel = errorCorrectLevel;
+	this.modules = null;
+	this.moduleCount = 0;
+	this.dataCache = null;
+	this.dataList = [];
+}
+
+QRCode.prototype = {
+	
+	addData : function(data) {
+		var newData = new QR8bitByte(data);
+		this.dataList.push(newData);
+		this.dataCache = null;
+	},
+	
+	isDark : function(row, col) {
+		if (row < 0 || this.moduleCount <= row || col < 0 || this.moduleCount <= col) {
+			throw new Error(row + "," + col);
+		}
+		return this.modules[row][col];
+	},
+
+	getModuleCount : function() {
+		return this.moduleCount;
+	},
+	
+	make : function() {
+		// Calculate automatically typeNumber if provided is < 1
+		if (this.typeNumber < 1 ){
+			var typeNumber = 1;
+			for (typeNumber = 1; typeNumber < 40; typeNumber++) {
+				var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, this.errorCorrectLevel);
+
+				var buffer = new QRBitBuffer();
+				var totalDataCount = 0;
+				for (var i = 0; i < rsBlocks.length; i++) {
+					totalDataCount += rsBlocks[i].dataCount;
+				}
+
+				for (var x = 0; x < this.dataList.length; x++) {
+					var data = this.dataList[x];
+					buffer.put(data.mode, 4);
+					buffer.put(data.getLength(), QRUtil.getLengthInBits(data.mode, typeNumber) );
+					data.write(buffer);
+				}
+				if (buffer.getLengthInBits() <= totalDataCount * 8)
+					break;
+			}
+			this.typeNumber = typeNumber;
+		}
+		this.makeImpl(false, this.getBestMaskPattern() );
+	},
+	
+	makeImpl : function(test, maskPattern) {
+		
+		this.moduleCount = this.typeNumber * 4 + 17;
+		this.modules = new Array(this.moduleCount);
+		
+		for (var row = 0; row < this.moduleCount; row++) {
+			
+			this.modules[row] = new Array(this.moduleCount);
+			
+			for (var col = 0; col < this.moduleCount; col++) {
+				this.modules[row][col] = null;//(col + row) % 3;
+			}
+		}
+	
+		this.setupPositionProbePattern(0, 0);
+		this.setupPositionProbePattern(this.moduleCount - 7, 0);
+		this.setupPositionProbePattern(0, this.moduleCount - 7);
+		this.setupPositionAdjustPattern();
+		this.setupTimingPattern();
+		this.setupTypeInfo(test, maskPattern);
+		
+		if (this.typeNumber >= 7) {
+			this.setupTypeNumber(test);
+		}
+	
+		if (this.dataCache === null) {
+			this.dataCache = QRCode.createData(this.typeNumber, this.errorCorrectLevel, this.dataList);
+		}
+	
+		this.mapData(this.dataCache, maskPattern);
+	},
+
+	setupPositionProbePattern : function(row, col)  {
+		
+		for (var r = -1; r <= 7; r++) {
+			
+			if (row + r <= -1 || this.moduleCount <= row + r) continue;
+			
+			for (var c = -1; c <= 7; c++) {
+				
+				if (col + c <= -1 || this.moduleCount <= col + c) continue;
+				
+				if ( (0 <= r && r <= 6 && (c === 0 || c === 6) ) || 
+                     (0 <= c && c <= 6 && (r === 0 || r === 6) ) || 
+                     (2 <= r && r <= 4 && 2 <= c && c <= 4) ) {
+					this.modules[row + r][col + c] = true;
+				} else {
+					this.modules[row + r][col + c] = false;
+				}
+			}		
+		}		
+	},
+	
+	getBestMaskPattern : function() {
+	
+		var minLostPoint = 0;
+		var pattern = 0;
+	
+		for (var i = 0; i < 8; i++) {
+			
+			this.makeImpl(true, i);
+	
+			var lostPoint = QRUtil.getLostPoint(this);
+	
+			if (i === 0 || minLostPoint >  lostPoint) {
+				minLostPoint = lostPoint;
+				pattern = i;
+			}
+		}
+	
+		return pattern;
+	},
+	
+	createMovieClip : function(target_mc, instance_name, depth) {
+	
+		var qr_mc = target_mc.createEmptyMovieClip(instance_name, depth);
+		var cs = 1;
+	
+		this.make();
+
+		for (var row = 0; row < this.modules.length; row++) {
+			
+			var y = row * cs;
+			
+			for (var col = 0; col < this.modules[row].length; col++) {
+	
+				var x = col * cs;
+				var dark = this.modules[row][col];
+			
+				if (dark) {
+					qr_mc.beginFill(0, 100);
+					qr_mc.moveTo(x, y);
+					qr_mc.lineTo(x + cs, y);
+					qr_mc.lineTo(x + cs, y + cs);
+					qr_mc.lineTo(x, y + cs);
+					qr_mc.endFill();
+				}
+			}
+		}
+		
+		return qr_mc;
+	},
+
+	setupTimingPattern : function() {
+		
+		for (var r = 8; r < this.moduleCount - 8; r++) {
+			if (this.modules[r][6] !== null) {
+				continue;
+			}
+			this.modules[r][6] = (r % 2 === 0);
+		}
+	
+		for (var c = 8; c < this.moduleCount - 8; c++) {
+			if (this.modules[6][c] !== null) {
+				continue;
+			}
+			this.modules[6][c] = (c % 2 === 0);
+		}
+	},
+	
+	setupPositionAdjustPattern : function() {
+	
+		var pos = QRUtil.getPatternPosition(this.typeNumber);
+		
+		for (var i = 0; i < pos.length; i++) {
+		
+			for (var j = 0; j < pos.length; j++) {
+			
+				var row = pos[i];
+				var col = pos[j];
+				
+				if (this.modules[row][col] !== null) {
+					continue;
+				}
+				
+				for (var r = -2; r <= 2; r++) {
+				
+					for (var c = -2; c <= 2; c++) {
+					
+						if (Math.abs(r) === 2 || 
+                            Math.abs(c) === 2 ||
+                            (r === 0 && c === 0) ) {
+							this.modules[row + r][col + c] = true;
+						} else {
+							this.modules[row + r][col + c] = false;
+						}
+					}
+				}
+			}
+		}
+	},
+	
+	setupTypeNumber : function(test) {
+	
+		var bits = QRUtil.getBCHTypeNumber(this.typeNumber);
+        var mod;
+	
+		for (var i = 0; i < 18; i++) {
+			mod = (!test && ( (bits >> i) & 1) === 1);
+			this.modules[Math.floor(i / 3)][i % 3 + this.moduleCount - 8 - 3] = mod;
+		}
+	
+		for (var x = 0; x < 18; x++) {
+			mod = (!test && ( (bits >> x) & 1) === 1);
+			this.modules[x % 3 + this.moduleCount - 8 - 3][Math.floor(x / 3)] = mod;
+		}
+	},
+	
+	setupTypeInfo : function(test, maskPattern) {
+	
+		var data = (this.errorCorrectLevel << 3) | maskPattern;
+		var bits = QRUtil.getBCHTypeInfo(data);
+        var mod;
+	
+		// vertical		
+		for (var v = 0; v < 15; v++) {
+	
+			mod = (!test && ( (bits >> v) & 1) === 1);
+	
+			if (v < 6) {
+				this.modules[v][8] = mod;
+			} else if (v < 8) {
+				this.modules[v + 1][8] = mod;
+			} else {
+				this.modules[this.moduleCount - 15 + v][8] = mod;
+			}
+		}
+	
+		// horizontal
+		for (var h = 0; h < 15; h++) {
+	
+			mod = (!test && ( (bits >> h) & 1) === 1);
+			
+			if (h < 8) {
+				this.modules[8][this.moduleCount - h - 1] = mod;
+			} else if (h < 9) {
+				this.modules[8][15 - h - 1 + 1] = mod;
+			} else {
+				this.modules[8][15 - h - 1] = mod;
+			}
+		}
+	
+		// fixed module
+		this.modules[this.moduleCount - 8][8] = (!test);
+	
+	},
+	
+	mapData : function(data, maskPattern) {
+		
+		var inc = -1;
+		var row = this.moduleCount - 1;
+		var bitIndex = 7;
+		var byteIndex = 0;
+		
+		for (var col = this.moduleCount - 1; col > 0; col -= 2) {
+	
+			if (col === 6) col--;
+	
+			while (true) {
+	
+				for (var c = 0; c < 2; c++) {
+					
+					if (this.modules[row][col - c] === null) {
+						
+						var dark = false;
+	
+						if (byteIndex < data.length) {
+							dark = ( ( (data[byteIndex] >>> bitIndex) & 1) === 1);
+						}
+	
+						var mask = QRUtil.getMask(maskPattern, row, col - c);
+	
+						if (mask) {
+							dark = !dark;
+						}
+						
+						this.modules[row][col - c] = dark;
+						bitIndex--;
+	
+						if (bitIndex === -1) {
+							byteIndex++;
+							bitIndex = 7;
+						}
+					}
+				}
+								
+				row += inc;
+	
+				if (row < 0 || this.moduleCount <= row) {
+					row -= inc;
+					inc = -inc;
+					break;
+				}
+			}
+		}
+		
+	}
+
+};
+
+QRCode.PAD0 = 0xEC;
+QRCode.PAD1 = 0x11;
+
+QRCode.createData = function(typeNumber, errorCorrectLevel, dataList) {
+	
+	var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectLevel);
+	
+	var buffer = new QRBitBuffer();
+	
+	for (var i = 0; i < dataList.length; i++) {
+		var data = dataList[i];
+		buffer.put(data.mode, 4);
+		buffer.put(data.getLength(), QRUtil.getLengthInBits(data.mode, typeNumber) );
+		data.write(buffer);
+	}
+
+	// calc num max data.
+	var totalDataCount = 0;
+	for (var x = 0; x < rsBlocks.length; x++) {
+		totalDataCount += rsBlocks[x].dataCount;
+	}
+
+	if (buffer.getLengthInBits() > totalDataCount * 8) {
+		throw new Error("code length overflow. (" + 
+            buffer.getLengthInBits() + 
+            ">" +  
+            totalDataCount * 8 + 
+            ")");
+	}
+
+	// end code
+	if (buffer.getLengthInBits() + 4 <= totalDataCount * 8) {
+		buffer.put(0, 4);
+	}
+
+	// padding
+	while (buffer.getLengthInBits() % 8 !== 0) {
+		buffer.putBit(false);
+	}
+
+	// padding
+	while (true) {
+		
+		if (buffer.getLengthInBits() >= totalDataCount * 8) {
+			break;
+		}
+		buffer.put(QRCode.PAD0, 8);
+		
+		if (buffer.getLengthInBits() >= totalDataCount * 8) {
+			break;
+		}
+		buffer.put(QRCode.PAD1, 8);
+	}
+
+	return QRCode.createBytes(buffer, rsBlocks);
+};
+
+QRCode.createBytes = function(buffer, rsBlocks) {
+
+	var offset = 0;
+	
+	var maxDcCount = 0;
+	var maxEcCount = 0;
+	
+	var dcdata = new Array(rsBlocks.length);
+	var ecdata = new Array(rsBlocks.length);
+	
+	for (var r = 0; r < rsBlocks.length; r++) {
+
+		var dcCount = rsBlocks[r].dataCount;
+		var ecCount = rsBlocks[r].totalCount - dcCount;
+
+		maxDcCount = Math.max(maxDcCount, dcCount);
+		maxEcCount = Math.max(maxEcCount, ecCount);
+		
+		dcdata[r] = new Array(dcCount);
+		
+		for (var i = 0; i < dcdata[r].length; i++) {
+			dcdata[r][i] = 0xff & buffer.buffer[i + offset];
+		}
+		offset += dcCount;
+		
+		var rsPoly = QRUtil.getErrorCorrectPolynomial(ecCount);
+		var rawPoly = new QRPolynomial(dcdata[r], rsPoly.getLength() - 1);
+
+		var modPoly = rawPoly.mod(rsPoly);
+		ecdata[r] = new Array(rsPoly.getLength() - 1);
+		for (var x = 0; x < ecdata[r].length; x++) {
+            var modIndex = x + modPoly.getLength() - ecdata[r].length;
+			ecdata[r][x] = (modIndex >= 0)? modPoly.get(modIndex) : 0;
+		}
+
+	}
+	
+	var totalCodeCount = 0;
+	for (var y = 0; y < rsBlocks.length; y++) {
+		totalCodeCount += rsBlocks[y].totalCount;
+	}
+
+	var data = new Array(totalCodeCount);
+	var index = 0;
+
+	for (var z = 0; z < maxDcCount; z++) {
+		for (var s = 0; s < rsBlocks.length; s++) {
+			if (z < dcdata[s].length) {
+				data[index++] = dcdata[s][z];
+			}
+		}
+	}
+
+	for (var xx = 0; xx < maxEcCount; xx++) {
+		for (var t = 0; t < rsBlocks.length; t++) {
+			if (xx < ecdata[t].length) {
+				data[index++] = ecdata[t][xx];
+			}
+		}
+	}
+
+	return data;
+
+};
+
+module.exports = QRCode;
+
+} };
+return { QRCode: R("index"), L: R("QRErrorCorrectLevel") }; })();
+</script>
+<script>/* ============ DEMONSTRAÇÃO: banco simulado no navegador (dados fictícios) ============ */
+const DEMO = (() => {
+  const DIA = 86400000, agora = () => Date.now(), iso = t => new Date(t).toISOString();
+  let semente = 7; const rnd = () => { semente = (semente * 16807) % 2147483647; return (semente - 1) / 2147483646; };
+  const erro = c => { const e = new Error(c); e.code = c; return e; };
+  const SERV = [{ nome: 'Corte', preco: 35 }, { nome: 'Barba', preco: 25 }, { nome: 'Corte + Barba', preco: 55 }];
+  const db = {
+    seq: 1000, planos: [{ codigo: 'basic', nome: 'Basic', preco: 19.9, nivel: 1 }, { codigo: 'pro', nome: 'Pro', preco: 39.9, nivel: 2 }, { codigo: 'expert', nome: 'Expert', preco: 69.9, nivel: 3 }],
+    config: { pin_plataforma: 'admin123', aviso_global: null, servicos_padrao: null },
+    barbearias: [], clientes: [], fila: [], profissionais: [], despesas: [], sessoes: {}
+  };
+  const id = () => ++db.seq;
+  const B = (o) => db.barbearias.push({ servicos: SERV.map(s => ({ ...s })), min_por_cliente: 30, tolerancia_min: 10, ativo: true, isento: false,
+    teste_ate: null, pago_ate: null, mp_status: null, mp_assinatura_id: null, cidade: 'Rio de Janeiro', pix_tipo: null, pix_chave: null, pix_nome: null, criado_em: iso(agora() - 60 * DIA), ...o });
+  B({ id: 1, slug: 'andrezinho', nome: 'Barbearia do Andrezinho', pin_dono: 'dono123', pin_barbeiro: 'barb123', plano: 'expert', isento: true,
+      pix_tipo: 'email', pix_chave: 'pix@barbearia-exemplo.com', pix_nome: 'Barbearia Exemplo', criado_em: iso(agora() - 200 * DIA) });
+  B({ id: 2, slug: 'barbearia-do-joao', nome: 'Barbearia do João', pin_dono: 'joao123', pin_barbeiro: 'barbjoao1', plano: 'pro', teste_ate: iso(agora() + 1.5 * DIA), criado_em: iso(agora() - 0.5 * DIA) });
+  B({ id: 3, slug: 'barbearia-centro', nome: 'Barbearia Centro', pin_dono: 'centro123', pin_barbeiro: 'barbcentro1', plano: 'basic', teste_ate: iso(agora() - 5 * DIA), criado_em: iso(agora() - 7 * DIA) });
+  // profissionais fictícios (CPFs de exemplo, válidos só no cálculo)
+  db.profissionais.push(
+    { id: 1, barbearia_id: 1, nome: 'João Pedro Santos', apelido: 'JP', cpf: '52998224725', nascimento: '1995-03-10', telefone: '21900000001', email: null, pix_tipo: 'telefone', pix_chave: '+5521900000001', recebe_direto: true, endereco: null, funcao: 'Barbeiro', tipo: 'aluguel', comissao_pct: null, aluguel_valor: 150, aluguel_periodo: 'semanal', salario: null, inicio: '2025-01-10', saida: null, ativo: true, obs: null },
+    { id: 2, barbearia_id: 1, nome: 'Carlos Lima Souza', apelido: 'Carlinhos', cpf: '11144477735', nascimento: '1990-08-21', telefone: null, email: null, pix_tipo: null, pix_chave: null, recebe_direto: false, endereco: null, funcao: 'Barbeiro', tipo: 'comissao', comissao_pct: 40, aluguel_valor: null, aluguel_periodo: null, salario: null, inicio: '2025-06-01', saida: null, ativo: true, obs: null },
+    { id: 3, barbearia_id: 1, nome: 'André Oliveira Costa', apelido: 'André', cpf: '86288366757', nascimento: '1988-01-05', telefone: null, email: null, pix_tipo: null, pix_chave: null, recebe_direto: false, endereco: null, funcao: 'Dono', tipo: 'nenhum', comissao_pct: null, aluguel_valor: null, aluguel_periodo: null, salario: null, inicio: '2024-01-01', saida: null, ativo: true, obs: null });
+  // clientes e histórico de atendimentos (fictícios), com rotinas diferentes
+  const nomes = ['Lucas Almeida', 'Rafael Costa', 'Pedro Henrique', 'Gabriel Souza', 'Mateus Lima', 'Thiago Rocha', 'Felipe Ramos', 'Bruno Dias', 'Vinícius Melo', 'Diego Nunes', 'Igor Pires', 'Caio Martins'];
+  const ciclos = [14, 15, 21, 10, 30, 14, 7, 20, 28, 12, 45, 18];
+  const atrasos = [0, 2, 0, 9, 0, 25, 0, 1, 60, 0, 0, 3];
+  nomes.forEach((nome, i) => {
+    const tel = '2198' + String(7000000 + i * 1371).padStart(7, '0'), ciclo = ciclos[i];
+    let t = agora() - (atrasos[i] * DIA) - (rnd() * 2 * DIA), visitas = 0, ultima = null;
+    for (let k = 0; k < 6 && t > agora() - 200 * DIA; k++) {
+      const s = SERV[Math.floor(rnd() * 3)], prof = [1, 2, 3][Math.floor(rnd() * 3)];
+      db.fila.push({ id: id(), barbearia_id: 1, telefone: tel, nome, status: 'atendido', entrada: iso(t - 3600000), chamado_em: iso(t - 1800000),
+        servico: s.nome, valor: s.preco, finalizado_em: iso(t), profissional_id: prof, forma_pagamento: ['dinheiro', 'pix', 'cartao'][Math.floor(rnd() * 3)] });
+      visitas++; if (!ultima) ultima = iso(t);
+      t -= (ciclo + (rnd() * 4 - 2)) * DIA;
+    }
+    db.clientes.push({ barbearia_id: 1, telefone: tel, nome, visitas, ultima_visita: ultima });
+  });
+  // atendimentos de hoje e fila atual
+  [['Lucas Almeida', 0], ['Rafael Costa', 1]].forEach(([n], k) => {
+    const c = db.clientes.find(x => x.nome === n);
+    db.fila.push({ id: id(), barbearia_id: 1, telefone: c.telefone, nome: n, status: 'atendido', entrada: iso(agora() - (3 - k) * 3600000), chamado_em: null,
+      servico: 'Corte', valor: 35, finalizado_em: iso(agora() - (2 - k) * 3600000), profissional_id: 2, forma_pagamento: 'pix' });
+  });
+  [['Marcos Vieira', '21991110001', 40, 'chamado'], ['Paulo Freitas', '21991110002', 25, 'esperando'], ['Jorge Antunes', '21991110003', 12, 'esperando']].forEach(([nome, tel, min, st]) => {
+    db.fila.push({ id: id(), barbearia_id: 1, telefone: tel, nome, status: st, entrada: iso(agora() - min * 60000), chamado_em: st === 'chamado' ? iso(agora() - 3 * 60000) : null });
+    db.clientes.push({ barbearia_id: 1, telefone: tel, nome, visitas: 0, ultima_visita: null });
+  });
+  const mes = (m, d) => { const x = new Date(); x.setMonth(x.getMonth() - m, d); return x.toISOString().slice(0, 10); };
+  [[0, 5, 'Aluguel do ponto', 'Aluguel', 1500], [0, 10, 'Luz', 'Conta de luz', 280], [0, 3, 'Produtos', 'Pomadas e lâminas', 420],
+   [1, 5, 'Aluguel do ponto', 'Aluguel', 1500], [1, 12, 'Luz', 'Conta de luz', 260], [1, 15, 'Produtos', 'Reposição', 390], [1, 20, 'Marketing', 'Impulsionar post', 80],
+   [2, 5, 'Aluguel do ponto', 'Aluguel', 1500], [2, 9, 'Internet e telefone', 'Internet', 110], [2, 18, 'Equipamentos', 'Máquina nova', 650]]
+    .forEach(([m, d, categoria, descricao, valor]) => db.despesas.push({ id: id(), barbearia_id: 1, data: mes(m, d), categoria, descricao, valor }));
+
+  // ---------- regras (as mesmas do banco real) ----------
+  const barb = i => db.barbearias.find(b => b.id === i);
+  function situacao(b){
+    const vence = [b.pago_ate, b.teste_ate].filter(Boolean).map(x => new Date(x).getTime()).sort((a, c) => c - a)[0] ?? null;
+    let s;
+    if (b.isento) s = 'isento'; else if (b.pago_ate && new Date(b.pago_ate) > agora()) s = 'ativo';
+    else if (b.teste_ate && new Date(b.teste_ate) > agora()) s = 'teste'; else if (vence && vence > agora() - 3 * DIA) s = 'aviso'; else s = 'bloqueado';
+    return { s, vence: vence ? iso(vence) : null };
+  }
+  const nivel = b => db.planos.find(p => p.codigo === b.plano).nivel;
+  const porSlug = slug => db.barbearias.find(b => b.slug === String(slug || '').trim().toLowerCase());
+  const barbFila = slug => { const b = porSlug(slug); return b && b.ativo && situacao(b).s !== 'bloqueado' ? b : null; };
+  const novoToken = (papel, bid) => { const t = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); db.sessoes[t] = { papel, bid }; return t; };
+  function sessao(t){ const s = db.sessoes[t]; if (!s) throw erro('nao_autorizado'); return s; }
+  function exigir(t, dono = false, nv = 1){
+    const s = sessao(t); if (s.papel === 'plataforma') throw erro('nao_autorizado');
+    if (dono && s.papel !== 'dono') throw erro('so_dono');
+    const b = barb(s.bid); if (!b || !b.ativo) throw erro('barbearia_inativa');
+    if (situacao(b).s === 'bloqueado') throw erro('assinatura_vencida');
+    if (nivel(b) < nv) throw erro('plano_insuficiente');
+    return b;
+  }
+  function exigirConta(t){ const s = sessao(t); if (s.papel !== 'dono') throw erro('so_dono'); const b = barb(s.bid); if (!b || !b.ativo) throw erro('barbearia_inativa'); return b; }
+  const exigirPlat = t => { if (sessao(t).papel !== 'plataforma') throw erro('nao_autorizado'); };
+  const dig = v => String(v || '').replace(/\D/g, '');
+  function cpfOk(c){ if (!/^\d{11}$/.test(c) || /^(\d)\1{10}$/.test(c)) return false;
+    const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += +c[i] * (n + 1 - i); const r = s * 10 % 11; return r === 10 ? 0 : r; };
+    return dv(9) === +c[9] && dv(10) === +c[10]; }
+  function pixNorm(tipo, chave){
+    const c = String(chave || '').trim(); let d = dig(chave);
+    if (!tipo || !c) return null;
+    if (tipo === 'cpf') { if (!cpfOk(d)) throw erro('pix_invalido'); return d; }
+    if (tipo === 'cnpj') { if (!/^\d{14}$/.test(d)) throw erro('pix_invalido'); return d; }
+    if (tipo === 'email') { const e = c.toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw erro('pix_invalido'); return e; }
+    if (tipo === 'telefone') { if (/^\d{10,11}$/.test(d)) d = '55' + d; if (!/^55\d{10,11}$/.test(d)) throw erro('pix_invalido'); return '+' + d; }
+    if (tipo === 'aleatoria') { const e = c.toLowerCase(); if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(e)) throw erro('pix_invalido'); return e; }
+    throw erro('pix_invalido');
+  }
+  const servOk = sv => Array.isArray(sv) && sv.length >= 1 && sv.length <= 20 && sv.every(s => typeof s.nome === 'string' && s.nome.trim() && s.nome.length <= 40 && typeof s.preco === 'number' && s.preco >= 0 && s.preco <= 10000);
+  const slugOk = s => /^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$/.test(s) && !['plataforma','barbeiro','dono','admin','entrar','planos'].includes(s);
+
+  const F = {
+    planos_lista: () => db.planos.map(p => ({ ...p })),
+    info_barbearia: ({ p_slug }) => { const b = porSlug(p_slug); if (!b || !b.ativo) return [];
+      return [{ nome: b.nome, servicos: b.servicos, min_por_cliente: b.min_por_cliente, tolerancia_min: b.tolerancia_min, plano: b.plano, disponivel: situacao(b).s !== 'bloqueado' }]; },
+    fila_publica: ({ p_slug }) => { const b = barbFila(p_slug); if (!b) return [];
+      return db.fila.filter(f => f.barbearia_id === b.id && ['esperando','chamado'].includes(f.status)).sort((a, c) => a.entrada < c.entrada ? -1 : 1)
+        .map(f => ({ id: f.id, primeiro_nome: f.nome.split(' ')[0], entrada: f.entrada, status: f.status })); },
+    entrar_fila: ({ p_slug, p_tel, p_nome }) => {
+      const b = barbFila(p_slug); if (!b) throw erro('barbearia_nao_encontrada');
+      const tel = dig(p_tel), nome = String(p_nome || '').trim();
+      if (!/^\d{2}9\d{8}$/.test(tel)) throw erro('telefone_invalido'); if (nome.length < 2 || nome.length > 60) throw erro('nome_invalido');
+      const ja = db.fila.find(f => f.barbearia_id === b.id && f.telefone === tel && ['esperando','chamado'].includes(f.status)); if (ja) return ja.id;
+      if (db.fila.filter(f => f.barbearia_id === b.id && ['esperando','chamado'].includes(f.status)).length >= 40) throw erro('fila_cheia');
+      const c = db.clientes.find(x => x.barbearia_id === b.id && x.telefone === tel);
+      if (c) c.nome = nome; else db.clientes.push({ barbearia_id: b.id, telefone: tel, nome, visitas: 0, ultima_visita: null });
+      const f = { id: id(), barbearia_id: b.id, telefone: tel, nome, status: 'esperando', entrada: iso(agora()), chamado_em: null }; db.fila.push(f); return f.id; },
+    buscar_cliente: ({ p_slug, p_tel }) => { const b = barbFila(p_slug); if (!b) return [];
+      const c = db.clientes.find(x => x.barbearia_id === b.id && x.telefone === dig(p_tel)); return c ? [{ nome: c.nome, visitas: c.visitas, ultima_visita: c.ultima_visita }] : []; },
+    sair_fila: ({ p_slug, p_id, p_tel }) => { const b = barbFila(p_slug); const f = b && db.fila.find(x => x.id === p_id && x.barbearia_id === b.id && x.telefone === dig(p_tel) && ['esperando','chamado'].includes(x.status)); if (f) f.status = 'removido'; return null; },
+    adm_login: ({ p_slug, p_pin }) => { const b = porSlug(p_slug); if (!b || !b.ativo) throw erro('barbearia_nao_encontrada');
+      const papel = p_pin === b.pin_dono ? 'dono' : p_pin === b.pin_barbeiro ? 'barbeiro' : null;
+      return papel ? [{ out_papel: papel, out_token: novoToken(papel, b.id) }] : []; },
+    adm_sair: ({ p_token }) => { delete db.sessoes[p_token]; return null; },
+    adm_conta: ({ p_token }) => { const s = sessao(p_token); if (s.papel === 'plataforma') throw erro('nao_autorizado'); const b = barb(s.bid); if (!b || !b.ativo) throw erro('barbearia_inativa');
+      const st = situacao(b); return [{ papel: s.papel, plano: b.plano, nivel: nivel(b), isento: b.isento, situacao: st.s, vence_em: st.vence, mp_status: b.mp_status,
+        tem_assinatura: !!b.mp_assinatura_id, cidade: b.cidade, pix_tipo: b.pix_tipo, pix_chave: b.pix_chave, pix_nome: b.pix_nome, aviso_global: db.config.aviso_global }]; },
+    adm_fila: ({ p_token }) => { const b = exigir(p_token);
+      return db.fila.filter(f => f.barbearia_id === b.id && ['esperando','chamado'].includes(f.status)).sort((a, c) => a.entrada < c.entrada ? -1 : 1).map(f => {
+        const c = db.clientes.find(x => x.barbearia_id === b.id && x.telefone === f.telefone) || {};
+        return { id: f.id, telefone: f.telefone, nome: f.nome, status: f.status, entrada: f.entrada, chamado_em: f.chamado_em, visitas: c.visitas || 0, ultima_visita: c.ultima_visita || null }; }); },
+    adm_chamar: ({ p_token, p_id }) => { const b = exigir(p_token); const f = db.fila.find(x => x.id === p_id && x.barbearia_id === b.id && ['esperando','chamado'].includes(x.status)); if (f) { f.status = 'chamado'; f.chamado_em = iso(agora()); } return null; },
+    adm_remover: ({ p_token, p_id }) => { const b = exigir(p_token); const f = db.fila.find(x => x.id === p_id && x.barbearia_id === b.id && ['esperando','chamado'].includes(x.status)); if (f) f.status = 'removido'; return null; },
+    adm_finalizar: ({ p_token, p_id, p_servico, p_valor, p_profissional = null, p_forma = null }) => {
+      const b = exigir(p_token);
+      if (p_valor == null || p_valor < 0 || p_valor > 100000) throw erro('valor_invalido');
+      if (p_forma && !['dinheiro','pix','cartao'].includes(p_forma)) throw erro('forma_invalida');
+      if (p_profissional && !db.profissionais.some(p => p.id === p_profissional && p.barbearia_id === b.id && p.ativo)) throw erro('profissional_invalido');
+      const f = db.fila.find(x => x.id === p_id && x.barbearia_id === b.id && ['esperando','chamado'].includes(x.status)); if (!f) throw erro('nao_encontrado');
+      Object.assign(f, { status: 'atendido', servico: String(p_servico || '').trim() || null, valor: Math.round(p_valor * 100) / 100, finalizado_em: iso(agora()), profissional_id: p_profissional, forma_pagamento: p_forma });
+      const c = db.clientes.find(x => x.barbearia_id === b.id && x.telefone === f.telefone); if (c) { c.visitas++; c.ultima_visita = f.finalizado_em; }
+      return null; },
+    adm_atendimentos: ({ p_token }) => { const b = exigir(p_token, false, 2);
+      return db.fila.filter(f => f.barbearia_id === b.id && f.status === 'atendido').sort((a, c) => a.finalizado_em > c.finalizado_em ? -1 : 1)
+        .map(f => ({ id: f.id, telefone: f.telefone, nome: f.nome, servico: f.servico, valor: f.valor, finalizado_em: f.finalizado_em, profissional_id: f.profissional_id || null, forma_pagamento: f.forma_pagamento || null })); },
+    adm_profissionais: ({ p_token }) => { const b = exigir(p_token, false, 2);
+      return db.profissionais.filter(p => p.barbearia_id === b.id).map(p => ({ id: p.id, nome: p.apelido || p.nome.split(' ')[0], ativo: p.ativo, nome_completo: p.nome, pix_chave: p.pix_chave, recebe_direto: p.recebe_direto && !!p.pix_chave })); },
+    dono_editar_valor: ({ p_token, p_id, p_valor }) => { const b = exigir(p_token, true, 2); if (p_valor == null || p_valor < 0) throw erro('valor_invalido');
+      const f = db.fila.find(x => x.id === p_id && x.barbearia_id === b.id && x.status === 'atendido'); if (f) f.valor = p_valor; return null; },
+    dono_excluir_atendimento: ({ p_token, p_id }) => { const b = exigir(p_token, true, 2); const f = db.fila.find(x => x.id === p_id && x.barbearia_id === b.id && x.status === 'atendido');
+      if (f) { f.status = 'removido'; const c = db.clientes.find(x => x.barbearia_id === b.id && x.telefone === f.telefone); if (c) c.visitas = Math.max(0, c.visitas - 1); } return null; },
+    dono_trocar_pin: ({ p_token, p_quem, p_novo }) => { const b = exigirConta(p_token);
+      if (!['dono','barbeiro'].includes(p_quem)) throw erro('quem_invalido'); if (!p_novo || p_novo.length < 6) throw erro('senha_curta');
+      if (p_novo === (p_quem === 'dono' ? b.pin_barbeiro : b.pin_dono)) throw erro('senha_repetida');
+      b[p_quem === 'dono' ? 'pin_dono' : 'pin_barbeiro'] = p_novo;
+      for (const [t, s] of Object.entries(db.sessoes)) if (s.bid === b.id && s.papel === p_quem) delete db.sessoes[t]; return null; },
+    dono_ajustes: ({ p_token, p_nome, p_servicos, p_min, p_tol, p_cidade, p_pix_tipo, p_pix_chave, p_pix_nome }) => {
+      const b = exigir(p_token, true); const chave = pixNorm(p_pix_tipo, p_pix_chave);
+      if (chave && String(p_pix_nome || '').trim().length < 2) throw erro('pix_nome');
+      if (String(p_nome || '').trim().length < 2) throw erro('nome_invalido');
+      if (!(p_min >= 5 && p_min <= 240 && p_tol >= 1 && p_tol <= 60)) throw erro('ajuste_invalido');
+      if (!servOk(p_servicos)) throw erro('servicos_invalidos');
+      Object.assign(b, { nome: p_nome.trim(), servicos: p_servicos, min_por_cliente: p_min, tolerancia_min: p_tol, cidade: (p_cidade || '').trim() || b.cidade,
+        pix_tipo: chave ? p_pix_tipo : null, pix_chave: chave, pix_nome: chave ? p_pix_nome.trim() : null }); return null; },
+    dono_profissionais: ({ p_token }) => { const b = exigir(p_token, true, 2); return db.profissionais.filter(p => p.barbearia_id === b.id).map(p => ({ ...p })); },
+    dono_salvar_profissional: ({ p_token, p }) => {
+      const b = exigir(p_token, true, 2), pid = p.id ? Number(p.id) : null, cpf = dig(p.cpf);
+      const nasc = p.nascimento ? new Date(p.nascimento + 'T12:00') : null, idade = nasc ? (agora() - nasc) / (365.25 * DIA) : 0;
+      if (!nasc || isNaN(nasc) || idade < 14 || idade > 100) throw erro('nascimento_invalido');
+      if (!cpfOk(cpf)) throw erro('cpf_invalido');
+      if (db.profissionais.some(x => x.barbearia_id === b.id && x.cpf === cpf && x.id !== pid)) throw erro('cpf_repetido');
+      if (String(p.nome || '').trim().split(/\s+/).length < 2) throw erro('nome_completo');
+      if (!['comissao','aluguel','aluguel_comissao','salario','nenhum'].includes(p.tipo)) throw erro('tipo_invalido');
+      let pct = null, alug = null, per = null, sal = null;
+      if (['comissao','aluguel_comissao'].includes(p.tipo)) { pct = Number(p.comissao_pct); if (!(p.comissao_pct != null && pct >= 0 && pct <= 100)) throw erro('comissao_invalida'); }
+      if (['aluguel','aluguel_comissao'].includes(p.tipo)) { alug = Number(p.aluguel_valor); per = p.aluguel_periodo; if (!(alug > 0) || !['semanal','mensal'].includes(per)) throw erro('aluguel_invalido'); }
+      if (p.tipo === 'salario') { sal = Number(p.salario); if (!(sal > 0)) throw erro('salario_invalido'); }
+      const pix = pixNorm(p.pix_tipo || null, p.pix_chave);
+      const dados = { nome: p.nome.trim(), apelido: (p.apelido || '').trim() || null, cpf, nascimento: p.nascimento, telefone: dig(p.telefone) || null, email: (p.email || '').trim().toLowerCase() || null,
+        pix_tipo: pix ? p.pix_tipo : null, pix_chave: pix, recebe_direto: !!p.recebe_direto && !!pix, endereco: (p.endereco || '').trim() || null, funcao: (p.funcao || '').trim() || 'Barbeiro',
+        tipo: p.tipo, comissao_pct: pct, aluguel_valor: alug, aluguel_periodo: per, salario: sal, inicio: p.inicio || new Date().toISOString().slice(0, 10), obs: (p.obs || '').trim() || null };
+      if (!pid) { const n = { id: id(), barbearia_id: b.id, ativo: true, saida: null, ...dados }; db.profissionais.push(n); return n.id; }
+      const x = db.profissionais.find(y => y.id === pid && y.barbearia_id === b.id); if (!x) throw erro('nao_encontrado');
+      const ativo = p.ativo !== false; Object.assign(x, dados, { ativo, saida: ativo ? null : (x.saida || new Date().toISOString().slice(0, 10)) }); return pid; },
+    dono_despesas: ({ p_token }) => { const b = exigir(p_token, true, 3); return db.despesas.filter(d => d.barbearia_id === b.id).sort((a, c) => a.data > c.data ? -1 : 1).map(d => ({ ...d })); },
+    dono_salvar_despesa: ({ p_token, p_id, p_data, p_categoria, p_descricao, p_valor }) => { const b = exigir(p_token, true, 3);
+      if (!p_data) throw erro('data_invalida'); if (String(p_categoria || '').trim().length < 2) throw erro('categoria_invalida'); if (!(p_valor > 0)) throw erro('valor_invalido');
+      const d = { id: id(), barbearia_id: b.id, data: p_data, categoria: p_categoria.trim(), descricao: (p_descricao || '').trim() || null, valor: p_valor }; db.despesas.push(d); return d.id; },
+    dono_excluir_despesa: ({ p_token, p_id }) => { const b = exigir(p_token, true, 3); db.despesas = db.despesas.filter(d => !(d.id === p_id && d.barbearia_id === b.id)); return null; },
+    plat_login: ({ p_pin }) => p_pin === db.config.pin_plataforma ? novoToken('plataforma', null) : null,
+    plat_listar: ({ p_token }) => { exigirPlat(p_token); return db.barbearias.map(b => { const st = situacao(b), at = db.fila.filter(f => f.barbearia_id === b.id && f.status === 'atendido');
+      return { id: b.id, slug: b.slug, nome: b.nome, ativo: b.ativo, criado_em: b.criado_em, plano: b.plano, isento: b.isento, situacao: st.s, vence_em: st.vence, mp_status: b.mp_status,
+        clientes: db.clientes.filter(c => c.barbearia_id === b.id).length, atendimentos_30d: at.filter(f => new Date(f.finalizado_em) > agora() - 30 * DIA).length,
+        ultimo_atendimento: at.map(f => f.finalizado_em).sort().pop() || null }; }); },
+    plat_criar: ({ p_token, p_slug, p_nome, p_pin_dono, p_pin_barbeiro, p_plano = 'pro' }) => { exigirPlat(p_token);
+      const slug = String(p_slug || '').trim().toLowerCase(); if (!slugOk(slug)) throw erro('slug_invalido'); if (porSlug(slug)) throw erro('slug_em_uso');
+      if (String(p_nome || '').trim().length < 2) throw erro('nome_invalido'); if ((p_pin_dono || '').length < 6 || (p_pin_barbeiro || '').length < 6) throw erro('senha_curta');
+      if (p_pin_dono === p_pin_barbeiro) throw erro('senha_repetida');
+      B({ id: id(), slug, nome: p_nome.trim(), pin_dono: p_pin_dono, pin_barbeiro: p_pin_barbeiro, plano: p_plano, teste_ate: iso(agora() + 2 * DIA), criado_em: iso(agora()),
+          servicos: db.config.servicos_padrao || SERV.map(s => ({ ...s })) }); return null; },
+    plat_ativar: ({ p_token, p_id, p_ativo }) => { exigirPlat(p_token); const b = barb(p_id); if (b) b.ativo = !!p_ativo; return null; },
+    plat_plano: ({ p_token, p_id, p_plano, p_isento }) => { exigirPlat(p_token); const b = barb(p_id); if (!b) throw erro('barbearia_nao_encontrada'); b.plano = p_plano; b.isento = !!p_isento; return null; },
+    plat_liberar: ({ p_token, p_id, p_dias }) => { exigirPlat(p_token); const b = barb(p_id); if (!b) throw erro('barbearia_nao_encontrada');
+      if (!(p_dias >= 1 && p_dias <= 400)) throw erro('dias_invalidos'); const base = Math.max(b.pago_ate ? new Date(b.pago_ate).getTime() : 0, agora()); b.pago_ate = iso(base + p_dias * DIA); return null; },
+    plat_preco: ({ p_token, p_codigo, p_preco }) => { exigirPlat(p_token); if (!(p_preco >= 1 && p_preco <= 10000)) throw erro('valor_invalido'); db.planos.find(p => p.codigo === p_codigo).preco = Math.round(p_preco * 100) / 100; return null; },
+    plat_redefinir: ({ p_token, p_id, p_quem, p_novo }) => { exigirPlat(p_token); const b = barb(p_id); if (!b) throw erro('barbearia_nao_encontrada');
+      if ((p_novo || '').length < 6) throw erro('senha_curta'); if (p_novo === (p_quem === 'dono' ? b.pin_barbeiro : b.pin_dono)) throw erro('senha_repetida');
+      b[p_quem === 'dono' ? 'pin_dono' : 'pin_barbeiro'] = p_novo; return null; },
+    plat_trocar_senha: ({ p_token, p_novo }) => { exigirPlat(p_token); if ((p_novo || '').length < 8) throw erro('senha_curta_plat'); db.config.pin_plataforma = p_novo;
+      for (const [t, s] of Object.entries(db.sessoes)) if (s.papel === 'plataforma') delete db.sessoes[t]; return null; },
+    cadastro_publico: ({ p }) => {
+      if (p.aceite !== true) throw erro('aceite_obrigatorio');
+      const nome = String(p.nome_barbearia || '').trim(); if (nome.length < 2) throw erro('nome_invalido');
+      if (String(p.resp_nome || '').trim().split(/\s+/).length < 2) throw erro('nome_completo');
+      if (!/^\d{10,11}$/.test(dig(p.resp_telefone))) throw erro('telefone_invalido');
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(p.resp_email || '').trim())) throw erro('email_invalido');
+      if ((p.senha_dono || '').length < 6 || (p.senha_barbeiro || '').length < 6) throw erro('senha_curta'); if (p.senha_dono === p.senha_barbeiro) throw erro('senha_repetida');
+      let base = nome.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 34) || 'barbearia';
+      if (!slugOk(base)) base = 'barbearia'; let slug = base, i = 1; while (porSlug(slug)) slug = base + '-' + (++i);
+      const nid = id(); B({ id: nid, slug, nome, pin_dono: p.senha_dono, pin_barbeiro: p.senha_barbeiro, plano: p.plano || 'pro', teste_ate: iso(agora() + 2 * DIA), criado_em: iso(agora()),
+        cidade: (p.cidade || '').trim() || 'Rio de Janeiro', servicos: db.config.servicos_padrao || SERV.map(s => ({ ...s })) });
+      return [{ slug, token: novoToken('dono', nid) }]; }
+  };
+  async function rpc(fn, args = {}){
+    await new Promise(r => setTimeout(r, 120));          // simula a internet
+    if (!F[fn]) throw erro('funcao_desconhecida');
+    return JSON.parse(JSON.stringify(F[fn](args) ?? null));
+  }
+  async function assinar({ token, acao, plano }){
+    await new Promise(r => setTimeout(r, 300));
+    const b = exigirConta(token);
+    if (acao === 'cancelar') { if (!b.mp_assinatura_id) throw erro('sem_assinatura'); b.mp_status = 'cancelled'; return { ok: true }; }
+    if (b.isento) throw erro('isento');
+    b.plano = plano; b.mp_status = 'authorized'; b.mp_assinatura_id = 'DEMO-' + id();
+    b.pago_ate = iso(Math.max(b.pago_ate ? new Date(b.pago_ate).getTime() : 0, agora()) + 30 * DIA);
+    throw erro('demo_pago');
+  }
+  return { rpc, assinar };
+})();
+const rpc = DEMO.rpc;
+
+/* navegação dentro da página (sem trocar o endereço do navegador) */
+let DEMO_HASH = '#/andrezinho';
+const NAV = { hash: () => DEMO_HASH, ir: h => { DEMO_HASH = h; window.scrollTo(0, 0); route(); demoMarcar(); } };
+const abrirExterno = url => demoAviso(`No site de verdade, isto abriria o WhatsApp:\n${decodeURIComponent((url.split('text=')[1] || '').replace(/\+/g, ' ')) || url}`);
+</script>
+<script>
+/* ============ CONFIGURAÇÃO (edite aqui) ============ */
+const CONFIG = {
+  // Barbearia aberta pelos links antigos, sem nome no endereço (/, /#/barbeiro, /#/dono).
+  // Nome, serviços, preços e tempos de cada barbearia ficam no banco: o dono ajusta na aba Ajustes.
+  PADRAO: "andrezinho",
+  // Regras da aba Clientes (rotina): margem 1.25 = "atrasado" depois de 25% além do intervalo habitual;
+  // sumido = 2 vezes o intervalo habitual; cicloMinimo evita alarme falso em quem vem a cada poucos dias.
+  ROTINA: { margem: 1.25, sumido: 2, cicloMinimo: 7, novoAteDias: 45 },
+  SUPABASE_URL: "https://pndispqytfrezeiokgwk.supabase.co",
+  SUPABASE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBuZGlzcHF5dGZyZXplaW9rZ3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNzYxNDcsImV4cCI6MjEwNzY1MjE0N30.CFZrPdQ8WJezaVKftyFBwk1r3yL2VP0lu5cRnohSpzc"
+};
+/* ==================================================== */
+
+const $app = document.getElementById('app');
+const $modal = document.getElementById('modal');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const digits = s => (s || '').replace(/\D/g, '');
+const fmtTime = iso => new Date(iso).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+const dm = d => String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
+const brl = v => new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(Number(v) || 0);
+const curto = v => v >= 1000 ? (v/1000).toFixed(1).replace('.', ',') + 'k' : String(Math.round(v));
+const maskPhone = v => {
+  const d = digits(v).slice(0, 11);
+  if (d.length <= 2) return d ? '(' + d : '';
+  if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+};
+const mmss = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+const LS = {
+  get(k, d){ try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+function parseValor(s){
+  s = String(s || '').trim().replace(/[R$\s]/g, '');
+  if (!s) return null;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = Number(s);
+  return Number.isFinite(n) && n >= 0 && n <= 100000 ? Math.round(n * 100) / 100 : null;
+}
+
+/* ---------- Pix (BR Code, Manual de Padrões para Iniciação do Pix, Banco Central) ---------- */
+const tlv = (id, v) => id + String(v.length).padStart(2, '0') + v;
+function crc16(s){   // polinômio 0x1021, valor inicial 0xFFFF
+  let c = 0xFFFF;
+  for (let i = 0; i < s.length; i++) {
+    c ^= s.charCodeAt(i) << 8;
+    for (let b = 0; b < 8; b++) c = (c & 0x8000 ? (c << 1) ^ 0x1021 : c << 1) & 0xFFFF;
+  }
+  return c.toString(16).toUpperCase().padStart(4, '0');
+}
+const ascii = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 .\-]/g, '').replace(/\s+/g, ' ').trim();
+function pixCopiaECola({ chave, nome, cidade, valor, txid }){
+  const conta = tlv('00', 'br.gov.bcb.pix') + tlv('01', chave);
+  let p = tlv('00', '01') + tlv('26', conta) + tlv('52', '0000') + tlv('53', '986')
+    + (valor > 0 ? tlv('54', Number(valor).toFixed(2)) : '')
+    + tlv('58', 'BR') + tlv('59', ascii(nome).slice(0, 25) || 'RECEBEDOR') + tlv('60', ascii(cidade).slice(0, 15) || 'BRASIL')
+    + tlv('62', tlv('05', (txid && txid.replace(/[^A-Za-z0-9]/g, '').slice(0, 25)) || '***'));
+  p += '6304';
+  return p + crc16(p);
+}
+function qrSvg(texto){
+  const q = new QRLib.QRCode(-1, QRLib.L.M); q.addData(texto); q.make();
+  const n = q.getModuleCount(), m = 4; let d = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c + m} ${r + m}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 2 * m} ${n + 2 * m}" shape-rendering="crispEdges" role="img" aria-label="QR Code Pix"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+}
+
+/* ---------- Datas e números ---------- */
+const parseDia = s => { const [y, m, d] = String(s).slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
+const isoDia = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const idade = nasc => { const n = parseDia(nasc), h = new Date(); let a = h.getFullYear() - n.getFullYear();
+  if (h.getMonth() < n.getMonth() || (h.getMonth() === n.getMonth() && h.getDate() < n.getDate())) a--; return a; };
+const fmtCpf = c => String(c || '').replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+const cpfOculto = c => String(c || '').replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '***.$2.$3-**');
+const maskCpf = v => { const d = digits(v).slice(0, 11);
+  return d.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1-$2'); };
+function cpfValido(c){
+  c = digits(c); if (!/^\d{11}$/.test(c) || /^(\d)\1{10}$/.test(c)) return false;
+  const dv = n => { let s = 0; for (let i = 0; i < n; i++) s += Number(c[i]) * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
+  return dv(9) === Number(c[9]) && dv(10) === Number(c[10]);
+}
+const FORMAS = { dinheiro: 'Dinheiro', pix: 'Pix', cartao: 'Cartão' };
+
+/* ---------- Janelas de confirmação e de pergunta (no lugar das do navegador) ---------- */
+function janela({ titulo, texto, campo, padrao = '', ok = 'Confirmar', cancelar = 'Cancelar', perigo = false }){
+  return new Promise(res => {
+    const ov = document.createElement('div'); ov.className = 'ov'; ov.style.alignItems = 'center'; ov.style.zIndex = 30;
+    ov.innerHTML = `<div class="sheet" style="border-radius:22px;margin:16px" role="dialog" aria-modal="true">
+      ${titulo ? `<h2>${esc(titulo)}</h2>` : ''}<p class="mut" style="margin:6px 0 4px">${esc(texto)}</p>
+      ${campo ? `<input id="jn-in" type="${campo}" value="${esc(padrao)}" style="margin-top:8px">` : ''}
+      <div class="actions" style="margin-top:14px;justify-content:flex-end">
+        ${cancelar ? `<button class="btn ghost sm" data-j="0">${esc(cancelar)}</button>` : ''}
+        <button class="${perigo ? 'red' : 'btn'} sm" style="width:auto;margin:0" data-j="1">${esc(ok)}</button></div></div>`;
+    const fim = v => { ov.remove(); res(v); };
+    ov.onclick = e => { const b = e.target.closest('[data-j]'); if (b) fim(b.dataset.j === '1' ? (campo ? ov.querySelector('#jn-in').value : true) : (campo ? null : false)); };
+    document.body.append(ov);
+    const inp = ov.querySelector('#jn-in'); if (inp) { inp.focus(); inp.select(); inp.onkeydown = e => { if (e.key === 'Enter') fim(inp.value); }; }
+  });
+}
+const confirmar = (texto, ok = 'Confirmar', perigo = false) => janela({ texto, ok, perigo });
+const perguntar = (texto, padrao = '', campo = 'text') => janela({ texto, campo, padrao, ok: 'Salvar' });
+const avisar = texto => janela({ texto, ok: 'Ok', cancelar: null });
+
+/* ---------- Comunicação com o Supabase (funções do banco) ---------- */
+async function rpcReal(){}
+const ERROS = {
+  telefone_invalido: 'Informe um WhatsApp válido: (XX) 9XXXX-XXXX',
+  nome_invalido: 'Informe seu nome ou apelido.',
+  fila_cheia: 'A fila está cheia no momento. Tente mais tarde.',
+  bloqueado: 'Muitas tentativas erradas. Espere 10 minutos e tente de novo.',
+  valor_invalido: 'Valor inválido.',
+  so_dono: 'Só o dono pode fazer isso.',
+  senha_repetida: 'Use uma senha diferente da outra.',
+  senha_curta: 'Use pelo menos 6 caracteres.',
+  nao_encontrado: 'Esse cliente já não está mais na fila.',
+  barbearia_nao_encontrada: 'Barbearia não encontrada ou desativada.',
+  barbearia_inativa: 'Esta barbearia está desativada.',
+  slug_invalido: 'Endereço inválido: use só letras sem acento, números e hífen (ex.: barbearia-do-joao).',
+  slug_em_uso: 'Esse endereço já está em uso. Escolha outro.',
+  servicos_invalidos: 'Confira os serviços: um por linha, no formato Nome = preço (ex.: Corte = 35).',
+  ajuste_invalido: 'Tempo por cliente: de 5 a 240 min. Tolerância: de 1 a 60 min.',
+  quem_invalido: 'Escolha dono ou barbeiro.',
+  senha_curta_plat: 'Use pelo menos 8 caracteres.',
+  assinatura_vencida: 'A mensalidade desta barbearia venceu. O dono precisa regularizar na aba Plano.',
+  plano_insuficiente: 'Seu plano não inclui esta função. Veja os planos na aba Plano.',
+  plano_invalido: 'Plano inválido.',
+  cpf_invalido: 'CPF inválido. Confira os números.',
+  cpf_repetido: 'Já existe um profissional com esse CPF.',
+  nome_completo: 'Informe o nome completo (nome e sobrenome).',
+  nascimento_invalido: 'Data de nascimento inválida (o profissional precisa ter pelo menos 14 anos).',
+  tipo_invalido: 'Escolha a forma de trabalho.',
+  comissao_invalida: 'Comissão: informe uma porcentagem de 0 a 100.',
+  aluguel_invalido: 'Aluguel da cadeira: informe o valor e se é semanal ou mensal.',
+  salario_invalido: 'Informe o valor do salário.',
+  pix_invalido: 'Chave Pix inválida para o tipo escolhido.',
+  pix_nome: 'Informe o nome do titular da chave Pix.',
+  cidade_invalida: 'Informe a cidade.',
+  profissional_invalido: 'Profissional inválido.',
+  forma_invalida: 'Forma de pagamento inválida.',
+  data_invalida: 'Data inválida.',
+  categoria_invalida: 'Informe a categoria.',
+  dias_invalidos: 'Informe de 1 a 400 dias.',
+  isento: 'Esta barbearia é isenta de mensalidade.',
+  email_invalido: 'Informe um e-mail válido.',
+  mp_nao_configurado: 'O pagamento online ainda não foi ativado. Fale com o suporte.',
+  mp_recusou: 'O Mercado Pago recusou o pedido. Tente de novo em instantes.',
+  sem_assinatura: 'Não há assinatura ativa para cancelar.',
+  aceite_obrigatorio: 'Para cadastrar, leia e aceite a política de privacidade.',
+  muitos_cadastros: 'Muitos cadastros agora. Tente de novo em alguns minutos.',
+  telefone_invalido_resp: 'WhatsApp inválido: use DDD + número.'
+};
+const msgErro = e => ERROS[e && e.code] || 'Algo deu errado. Verifique a internet e tente de novo.';
+
+/* ---------- Rotas ---------- */
+let timers = [];
+const clearTimers = () => { timers.forEach(clearInterval); timers = []; };
+/* Endereços:
+   #/<barbearia>            cliente        #/<barbearia>/barbeiro   barbeiro
+   #/<barbearia>/dono       dono           #/plataforma             cadastro das barbearias
+   Links antigos (#/, #/barbeiro, #/admin, #/dono) abrem a barbearia CONFIG.PADRAO. */
+let SHOP = null;          // { slug, nome, servicos, min_por_cliente, tolerancia_min }
+let rotaAtual = 0;
+const AREAS = ['barbeiro', 'admin', 'dono'];
+function lerRota(){
+  const p = decodeURIComponent(NAV.hash().replace(/^#\/?/, '')).toLowerCase().split('/').filter(Boolean);
+  if (p[0] === 'plataforma') return { plat: true };
+  if (p[0] === 'entrar') return { entrar: true };
+  if (p[0] === 'planos') return { planos: true };
+  if (!p.length || AREAS.includes(p[0])) return { slug: CONFIG.PADRAO, area: p[0] || '' };
+  return { slug: p[0], area: p[1] || '' };
+}
+const linkBase = () => 'https://barbearia-andrezinho.netlify.app/';
+const linkDe = (slug, area = '') => linkBase() + '#/' + slug + (area ? '/' + area : '');
+const tkKey = () => 'bb_ticket_' + SHOP.slug;
+
+async function carregarShop(slug){
+  const r = await rpc('info_barbearia', {p_slug: slug});
+  if (!r || !r.length) return null;
+  return { slug, ...r[0], servicos: Array.isArray(r[0].servicos) ? r[0].servicos : [] };
+}
+
+async function route(){
+  clearTimers();
+  $app.onclick = null; $modal.onclick = null; $modal.innerHTML = ''; $app.className = '';
+  const minha = ++rotaAtual, r = lerRota();
+  if (r.plat) { document.title = 'Plataforma · Fila da Barbearia'; return platView(); }
+  if (r.entrar) { document.title = 'Entrar · Fila da Barbearia'; return entrarView(); }
+  if (r.planos) { document.title = 'Planos · Fila da Barbearia'; return planosView(); }
+  if (!SHOP || SHOP.slug !== r.slug) {
+    SHOP = null;
+    $app.innerHTML = '<div class="logo">💈</div><p class="sub">Carregando…</p>';
+    let s;
+    try { s = await carregarShop(r.slug); }
+    catch (e) {
+      if (minha !== rotaAtual) return;
+      $app.innerHTML = `<div class="logo">📶</div><h1>Sem conexão</h1><p class="sub">${esc(msgErro(e))}</p><button class="btn" id="tenta">Tentar de novo</button>`;
+      document.getElementById('tenta').onclick = route; return;
+    }
+    if (minha !== rotaAtual) return;
+    if (!s) {
+      $app.innerHTML = `<div class="logo">🔎</div><h1>Barbearia não encontrada</h1><p class="sub">Confira o link com a sua barbearia. Este endereço não existe ou foi desativado.</p>`;
+      return;
+    }
+    SHOP = s;
+  }
+  document.title = SHOP.nome;
+  if (r.area === 'dono') return adminView('dono');
+  if (r.area === 'barbeiro' || r.area === 'admin') return adminView('barbeiro');
+  const t = LS.get(tkKey(), null);
+  if (t) return statusView(t);
+  homeView();
+}
+
+
+/* =====================================================================
+   CLIENTE
+   ===================================================================== */
+function homeView(){
+  $app.innerHTML = `
+    <div class="logo">💈</div>
+    <h1>${esc(SHOP.nome)}</h1>
+    ${SHOP.disponivel
+      ? `<p class="sub">Sem fila no balcão. Entre na lista e acompanhe pelo celular.</p>
+         <button class="btn" id="go">Entrar na Fila / Agendar</button>`
+      : `<p class="sub">A fila online está temporariamente indisponível. Fale direto com a barbearia.</p>`}`;
+  $app.insertAdjacentHTML('beforeend', `<p class="center" style="margin-top:40px"><a href="#/entrar" class="mut" style="color:var(--mut)">Sou da barbearia · Entrar</a></p>`);
+  const go = document.getElementById('go'); if (go) go.onclick = formView;
+}
+
+function formView(){
+  $app.innerHTML = `
+    <button class="back" id="bk">← Voltar</button>
+    <h2>Seus dados</h2>
+    <div class="card">
+      <label>WhatsApp</label>
+      <input id="tel" inputmode="numeric" placeholder="(21) 99999-9999" autocomplete="tel">
+      <div id="hello" class="mut" style="margin-top:8px"></div>
+      <label>Nome ou apelido</label>
+      <input id="nome" placeholder="Como podemos te chamar?" autocomplete="given-name">
+      <div class="err" id="err"></div>
+      <button class="btn" id="enviar">Entrar na fila</button>
+    </div>`;
+  const tel = document.getElementById('tel'), nome = document.getElementById('nome'), hello = document.getElementById('hello'), err = document.getElementById('err');
+  document.getElementById('bk').onclick = homeView;
+
+  tel.addEventListener('input', async () => {
+    tel.value = maskPhone(tel.value);
+    hello.textContent = '';
+    if (digits(tel.value).length === 11) {
+      try {
+        const r = await rpc('buscar_cliente', {p_slug: SHOP.slug, p_tel: digits(tel.value)});
+        if (r && r[0]) {
+          nome.value = r[0].nome;
+          hello.innerHTML = `👋 Bem-vindo de volta, <b>${esc(r[0].nome)}</b>! ${r[0].visitas || 0} visita(s)` +
+            (r[0].ultima_visita ? ` · última em ${new Date(r[0].ultima_visita).toLocaleDateString('pt-BR')}` : '');
+        }
+      } catch (e) { console.error(e); }
+    }
+  });
+
+  document.getElementById('enviar').onclick = async () => {
+    err.textContent = '';
+    const t = digits(tel.value), n = nome.value.trim();
+    if (!/^\d{2}9\d{8}$/.test(t)) return err.textContent = ERROS.telefone_invalido;
+    if (n.length < 2) return err.textContent = ERROS.nome_invalido;
+    try {
+      const id = await rpc('entrar_fila', {p_slug: SHOP.slug, p_tel: t, p_nome: n});
+      const ticket = {id, tel: t, nome: n};
+      LS.set(tkKey(), ticket);
+      statusView(ticket);
+    } catch (e) { err.textContent = msgErro(e); console.error(e); }
+  };
+}
+
+function statusView(ticket){
+  const render = async () => {
+    let fila;
+    try { fila = await rpc('fila_publica', {p_slug: SHOP.slug}); } catch { return; }
+    const idx = fila.findIndex(f => f.id === ticket.id);
+    if (idx < 0) {
+      clearTimers(); LS.set(tkKey(), null);
+      $app.innerHTML = `<div class="logo">✅</div><h1>Obrigado!</h1><p class="sub">Você saiu da fila. Quando quiser, é só voltar.</p><button class="btn" id="novo">Entrar novamente</button>`;
+      document.getElementById('novo').onclick = homeView;
+      return;
+    }
+    const me = fila[idx], espera = idx * SHOP.min_por_cliente;
+    $app.innerHTML = `
+      <h1>${esc(SHOP.nome)}</h1>
+      <p class="sub">Olá, ${esc(ticket.nome)}!</p>
+      ${me.status === 'chamado'
+        ? `<div class="alert">🔔 É a sua vez! Compareça em até ${SHOP.tolerancia_min} minutos para não perder a vez.</div>`
+        : `<div class="card center"><div class="mut">Sua posição</div><div class="big">${idx + 1}º</div>
+           <p class="mut" style="margin-top:10px">${idx === 0 ? 'Você é o próximo!' : `Tempo estimado: ~${espera} min`}</p>
+           <p class="mut">Entrada registrada às ${fmtTime(me.entrada)}</p></div>`}
+      <div class="card" style="margin-top:14px"><h2>Lista de espera</h2>
+        ${fila.map((f, i) => `<div class="item"><div class="pos">${i + 1}</div>
+          <div class="grow"><div class="name">${f.id === ticket.id ? 'Você' : esc(f.primeiro_nome)}</div>
+          <div class="mut">chegou às ${fmtTime(f.entrada)}</div></div>
+          ${f.status === 'chamado' ? '<span class="tag">chamado</span>' : ''}</div>`).join('')}
+      </div>
+      <button class="btn ghost" id="sair">Sair da fila</button>`;
+    document.getElementById('sair').onclick = async () => {
+      if (await confirmar('Deseja sair da fila?', 'Sair da fila', true)) { try { await rpc('sair_fila', {p_slug: SHOP.slug, p_id: ticket.id, p_tel: ticket.tel}); } catch {} render(); }
+    };
+  };
+  render();
+  timers.push(setInterval(render, 5000));
+}
+
+/* =====================================================================
+   ANÁLISES (faturamento e rotina dos clientes)
+   ===================================================================== */
+/*ANALYTICS-START*/
+const DAY = 86400000;
+const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const startOfWeek = d => { const x = startOfDay(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };   // semana começa na segunda
+const startOfMonth = d => { const x = startOfDay(d); x.setDate(1); return x; };
+const dayKey = d => { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0'); };
+const dayDiff = (a, b) => Math.round((startOfDay(a) - startOfDay(b)) / DAY);
+
+function somar(rows, de, ate){
+  let total = 0, qtd = 0;
+  for (const r of rows) { const t = new Date(r.finalizado_em); if (t >= de && t < ate) { total += Number(r.valor || 0); qtd++; } }
+  return { total, qtd };
+}
+function variacao(atual, anterior){ if (!anterior) return atual ? null : 0; return (atual - anterior) / anterior * 100; }   // null = sem base de comparação
+
+function resumoFaturamento(rows, agora = new Date()){
+  const hoje0 = startOfDay(agora), amanha = addDays(hoje0, 1);
+  const hoje = somar(rows, hoje0, amanha), ontem = somar(rows, addDays(hoje0, -1), hoje0);
+  const sem0 = startOfWeek(agora), semAnt0 = addDays(sem0, -7), decorridos = dayDiff(hoje0, sem0) + 1;
+  const sem = somar(rows, sem0, amanha), semAnt = somar(rows, semAnt0, addDays(semAnt0, decorridos));
+  const mes0 = startOfMonth(agora), mesAnt0 = new Date(mes0.getFullYear(), mes0.getMonth() - 1, 1);
+  const diasMesAnt = new Date(mesAnt0.getFullYear(), mesAnt0.getMonth() + 1, 0).getDate();
+  const mes = somar(rows, mes0, amanha);
+  const mesAnt = somar(rows, mesAnt0, new Date(mesAnt0.getFullYear(), mesAnt0.getMonth(), Math.min(agora.getDate(), diasMesAnt) + 1));
+  const d30 = somar(rows, addDays(hoje0, -29), amanha);
+  return { hoje, ontem, sem, semAnt, mes, mesAnt, d30, ticket: d30.qtd ? d30.total / d30.qtd : 0 };
+}
+function serieDiaria(rows, dias = 14, agora = new Date()){
+  const hoje0 = startOfDay(agora), out = [];
+  for (let i = dias - 1; i >= 0; i--) { const d = addDays(hoje0, -i); out.push({ dia: d, ...somar(rows, d, addDays(d, 1)) }); }
+  return out;
+}
+function serieSemanal(rows, semanas = 8, agora = new Date()){
+  const sem0 = startOfWeek(agora), out = [];
+  for (let i = semanas - 1; i >= 0; i--) { const ini = addDays(sem0, -7 * i); out.push({ inicio: ini, parcial: i === 0, ...somar(rows, ini, addDays(ini, 7)) }); }
+  return out;
+}
+function porServico(rows, dias = 30, agora = new Date()){
+  const de = addDays(startOfDay(agora), -(dias - 1)), ate = addDays(startOfDay(agora), 1), m = new Map();
+  for (const r of rows) {
+    const t = new Date(r.finalizado_em); if (t < de || t >= ate) continue;
+    const k = r.servico || 'Sem serviço', x = m.get(k) || { servico: k, qtd: 0, total: 0 };
+    x.qtd++; x.total += Number(r.valor || 0); m.set(k, x);
+  }
+  return [...m.values()].sort((a, b) => b.total - a.total);
+}
+function porForma(rows, dias = 30, agora = new Date()){
+  const de = addDays(startOfDay(agora), -(dias - 1)), ate = addDays(startOfDay(agora), 1);
+  const m = { dinheiro: 0, pix: 0, cartao: 0, '': 0 }, q = { dinheiro: 0, pix: 0, cartao: 0, '': 0 };
+  for (const r of rows) {
+    const t = new Date(r.finalizado_em); if (t < de || t >= ate) continue;
+    const k = r.forma_pagamento in m ? r.forma_pagamento : '';
+    m[k] += Number(r.valor || 0); q[k]++;
+  }
+  return Object.keys(m).filter(k => k || q[k]).map(k => ({ forma: k, rotulo: FORMAS[k] || 'Não informado', total: m[k], qtd: q[k] }));
+}
+
+// repasses de um mês: quanto cada profissional produziu, quanto fica com ele, aluguel e salário
+function repassesDoMes(rows, profs, ano, mes){
+  const ini = new Date(ano, mes, 1), fim = new Date(ano, mes + 1, 1), diasMes = Math.round((fim - ini) / DAY);
+  let receita = 0, qtd = 0; const prod = new Map(), formas = { dinheiro: 0, pix: 0, cartao: 0, '': 0 };
+  for (const r of rows) {
+    const t = new Date(r.finalizado_em); if (t < ini || t >= fim) continue;
+    const v = Number(r.valor || 0); receita += v; qtd++;
+    formas[r.forma_pagamento in formas ? r.forma_pagamento : ''] += v;
+    if (r.profissional_id) { const x = prod.get(r.profissional_id) || { total: 0, qtd: 0 }; x.total += v; x.qtd++; prod.set(r.profissional_id, x); }
+  }
+  const linhas = [];
+  for (const p of profs) {
+    const noMes = parseDia(p.inicio) < fim && (!p.saida || parseDia(p.saida) >= ini);
+    const pr = prod.get(p.id) || { total: 0, qtd: 0 };
+    if (!noMes && !pr.qtd) continue;
+    const pct = Number(p.comissao_pct || 0);
+    const parte = p.tipo === 'comissao' || p.tipo === 'aluguel_comissao' ? pr.total * pct / 100 : p.tipo === 'aluguel' ? pr.total : 0;
+    const aluguel = (p.tipo === 'aluguel' || p.tipo === 'aluguel_comissao') && noMes
+      ? (p.aluguel_periodo === 'mensal' ? Number(p.aluguel_valor || 0) : Number(p.aluguel_valor || 0) * diasMes / 7) : 0;
+    const salario = p.tipo === 'salario' && noMes ? Number(p.salario || 0) : 0;
+    linhas.push({ p, producao: pr.total, atend: pr.qtd, parte, aluguel, salario, casa: pr.total - parte + aluguel - salario });
+  }
+  const soma = k => linhas.reduce((s, l) => s + l[k], 0);
+  return { receita, qtd, formas, linhas, parte: soma('parte'), aluguel: soma('aluguel'), salario: soma('salario'), diasMes };
+}
+
+function analisarClientes(rows, agora = new Date(), cfg = CONFIG.ROTINA){
+  const por = new Map();
+  for (const r of rows) {   // rows vem do mais recente para o mais antigo: o primeiro nome visto é o mais atual
+    let c = por.get(r.telefone);
+    if (!c) { c = { telefone: r.telefone, nome: r.nome, dias: new Map(), total: 0 }; por.set(r.telefone, c); }
+    c.dias.set(dayKey(r.finalizado_em), startOfDay(r.finalizado_em)); c.total += Number(r.valor || 0);
+  }
+  const hoje = startOfDay(agora), lista = [];
+  for (const c of por.values()) {
+    const dias = [...c.dias.values()].sort((a, b) => a - b), n = dias.length, ultima = dias[n - 1];
+    const gaps = []; for (let i = 1; i < n; i++) gaps.push(dayDiff(dias[i], dias[i - 1]));
+    const media = gaps.length ? gaps.reduce((s, g) => s + g, 0) / gaps.length : null;
+    const ciclo = media === null ? null : Math.max(media, cfg.cicloMinimo);
+    const desde = dayDiff(hoje, ultima);
+    let status;
+    if (n === 1) status = desde <= cfg.novoAteDias ? 'novo' : 'sumido';
+    else if (desde <= ciclo * cfg.margem) status = 'rotina';
+    else if (desde <= ciclo * cfg.sumido) status = 'atrasado';
+    else status = 'sumido';
+    let espacando = false;
+    if (n >= 4) {
+      const antes = gaps.slice(0, -1), mAnt = antes.reduce((s, g) => s + g, 0) / antes.length;
+      espacando = gaps[gaps.length - 1] >= Math.max(mAnt * 1.5, mAnt + 5);
+    }
+    lista.push({ telefone: c.telefone, nome: c.nome, visitas: n, total: c.total, ciclo: media === null ? null : Math.round(media),
+      desde, status, espacando, ultima, proxima: ciclo ? addDays(ultima, Math.round(ciclo)) : null });
+  }
+  const peso = { atrasado: 0, sumido: 1, rotina: 2, novo: 3 };
+  lista.sort((a, b) => (peso[a.status] - peso[b.status]) || ((b.desde - (b.ciclo || 0)) - (a.desde - (a.ciclo || 0))));
+  return lista;
+}
+function contagemClientes(lista){
+  const c = { rotina: 0, atrasado: 0, sumido: 0, novo: 0, espacando: 0 };
+  for (const x of lista) { c[x.status]++; if (x.espacando) c.espacando++; }
+  return c;
+}
+/*ANALYTICS-END*/
+
+/* =====================================================================
+   ÁREA RESTRITA (barbeiro e dono)
+   ===================================================================== */
+const S = { token: null, papel: null, need: 'barbeiro', tab: 'fila', fila: [], atend: [], busca: '',
+            conta: null, profs: [], profDet: [], desp: [], planos: [], rel: { modo: 'mes', ano: new Date().getFullYear(), mes: new Date().getMonth() },
+            despMes: null, fin: null };
+const expirando = new Set();
+const restante = f => Math.max(0, SHOP.tolerancia_min * 60 - Math.floor((Date.now() - new Date(f.chamado_em)) / 1000));
+const nivel = () => (S.conta && S.conta.nivel) || 1;
+const bloqueada = () => S.conta && S.conta.situacao === 'bloqueado';
+function tabsDisponiveis(){
+  const dono = S.papel === 'dono';
+  if (bloqueada()) return dono ? ['plano'] : [];
+  const t = ['fila'];
+  if (nivel() >= 2) t.push('fat', 'cli');
+  if (dono && nivel() >= 2) t.push('equipe');
+  if (dono && nivel() >= 3) t.push('despesas', 'relatorios');
+  if (dono) t.push('ajustes', 'senhas', 'plano');
+  return t;
+}
+const ROTULO_TAB = { fila: 'Fila', fat: 'Faturamento', cli: 'Clientes', equipe: 'Equipe', despesas: 'Despesas',
+  relatorios: 'Relatórios', ajustes: 'Ajustes', senhas: 'Senhas', plano: 'Plano' };
+const NOME_PLANO = { basic: 'Basic', pro: 'Pro', expert: 'Expert' };
+const SS = {
+  get(k){ try { return sessionStorage.getItem(k); } catch { return null; } },
+  set(k, v){ try { sessionStorage.setItem(k, v); } catch {} },
+  del(k){ try { sessionStorage.removeItem(k); } catch {} }
+};
+const tokKey = () => 'bb_token_' + SHOP.slug, papelKey = () => 'bb_papel_' + SHOP.slug;
+
+function adminErr(e){
+  if (e && (e.code === 'nao_autorizado' || e.code === 'barbearia_inativa')) { logout(); return true; }
+  if (e && (e.code === 'assinatura_vencida' || e.code === 'plano_insuficiente')) {   // plano mudou ou venceu: recarrega o painel
+    clearTimers(); $modal.innerHTML = ''; startAdmin(); return true;
+  }
+  console.error(e); return false;
+}
+
+function adminView(need){
+  S.need = need;
+  S.token = SS.get(tokKey()); S.papel = SS.get(papelKey());
+  if (!S.token) return loginView();
+  if (need === 'dono' && S.papel !== 'dono') return loginView('Esta área é só do dono.');
+  startAdmin();
+}
+
+function loginView(aviso = ''){
+  $app.className = ''; $modal.innerHTML = '';
+  $app.innerHTML = `<div class="logo">🔒</div><h1>${S.need === 'dono' ? 'Área do dono' : 'Área do barbeiro'}</h1>
+    <p class="sub">${esc(SHOP.nome)}</p>
+    <div class="card"><label>Senha</label><input id="pw" type="password" autocomplete="current-password">
+    <div class="err" id="err">${esc(aviso)}</div><button class="btn" id="ok">Entrar</button></div>`;
+  const go = async () => {
+    const pw = document.getElementById('pw').value, err = document.getElementById('err');
+    err.textContent = ''; if (!pw) return;
+    try {
+      const r = await rpc('adm_login', {p_slug: SHOP.slug, p_pin: pw});
+      if (!r || !r.length) return err.textContent = 'Senha incorreta.';
+      if (S.need === 'dono' && r[0].out_papel !== 'dono') {
+        rpc('adm_sair', {p_token: r[0].out_token}).catch(() => {});
+        return err.textContent = 'Esta área é só do dono.';
+      }
+      SS.set(tokKey(), r[0].out_token); SS.set(papelKey(), r[0].out_papel);
+      adminView(S.need);
+    } catch (e) { err.textContent = msgErro(e); }
+  };
+  document.getElementById('ok').onclick = go;
+  document.getElementById('pw').addEventListener('keydown', e => e.key === 'Enter' && go());
+}
+
+function logout(){
+  const t = S.token;
+  SS.del(tokKey()); SS.del(papelKey());
+  S.token = null; S.papel = null; clearTimers(); $app.onclick = null; $modal.onclick = null; $modal.innerHTML = '';
+  if (t) rpc('adm_sair', {p_token: t}).catch(() => {});
+  loginView();
+}
+
+async function carregarConta(){
+  const r = await rpc('adm_conta', {p_token: S.token});
+  S.conta = r && r[0] ? r[0] : null;
+  if (!S.conta) throw Object.assign(new Error('nao_autorizado'), { code: 'nao_autorizado' });
+}
+
+async function startAdmin(){
+  $app.className = 'wide';
+  $app.innerHTML = '<p class="sub">Carregando…</p>';
+  try { await carregarConta(); } catch (e) { if (!adminErr(e)) $app.innerHTML = `<p class="err">${esc(msgErro(e))}</p>`; return; }
+  try { S.planos = await rpc('planos_lista') || []; } catch { S.planos = []; }
+  if (bloqueada() && S.papel !== 'dono') {
+    $app.className = '';
+    $app.innerHTML = `<div class="logo">⏸️</div><h1>Painel pausado</h1><p class="sub">${esc(ERROS.assinatura_vencida)}</p>
+      <button class="btn ghost" data-a="logout">Sair</button>`;
+    $app.onclick = onAdminClick; return;
+  }
+  if (!tabsDisponiveis().includes(S.tab)) S.tab = tabsDisponiveis()[0];
+  shell();
+  $app.onclick = onAdminClick; $modal.onclick = onModalClick;
+  if (!bloqueada()) {
+    await Promise.all([carregarFila(), nivel() >= 2 ? carregarAtend() : null, nivel() >= 2 ? carregarProfs() : null,
+                       S.papel === 'dono' && nivel() >= 2 ? carregarProfDet() : null,
+                       S.papel === 'dono' && nivel() >= 3 ? carregarDesp() : null]);
+  }
+  renderTab();
+  if (bloqueada()) return;
+  timers.push(setInterval(() => { if (S.tab === 'fila') carregarFila(); }, 4000));
+  timers.push(setInterval(async () => {
+    if (nivel() < 2) return;
+    await carregarAtend();
+    if (S.tab === 'cli') renderCliLista(); else if (S.tab === 'fat' || S.tab === 'fila') renderTab();
+  }, 60000));
+  timers.push(setInterval(tickTimers, 1000));
+}
+
+function bannerConta(){
+  const c = S.conta; if (!c) return '';
+  return (c.aviso_global ? `<div class="banner info">📢 ${esc(c.aviso_global)}</div>` : '') + bannerSituacao(c);
+}
+function bannerSituacao(c){
+  const quando = d => d ? `${dm(new Date(d))} às ${fmtTime(d)}` : '';
+  if (c.situacao === 'teste') return `<div class="banner info">Teste grátis do plano ${NOME_PLANO[c.plano]} até ${quando(c.vence_em)}.${S.papel === 'dono' ? ' Assine na aba Plano para continuar usando.' : ''}</div>`;
+  if (c.situacao === 'aviso') {
+    const bloq = new Date(new Date(c.vence_em).getTime() + 3 * DAY);
+    return `<div class="banner alerta">A mensalidade venceu em ${dm(new Date(c.vence_em))}. O painel e a fila serão pausados em ${quando(bloq)}.${S.papel === 'dono' ? ' Regularize na aba Plano.' : ' Avise o dono.'}</div>`;
+  }
+  if (c.situacao === 'bloqueado') return `<div class="banner alerta">A mensalidade venceu e o painel e a fila estão pausados. Assine abaixo para liberar na hora. Nenhum dado foi apagado.</div>`;
+  return '';
+}
+
+function shell(){
+  $app.innerHTML = `
+    <div class="row"><h2 style="margin:0">💈 ${esc(SHOP.nome)}</h2>
+      <div><span class="tag">${S.papel === 'dono' ? 'Dono' : 'Barbeiro'} · ${NOME_PLANO[S.conta.plano] || ''}</span> <button class="btn ghost sm" data-a="logout">Sair</button></div></div>
+    ${bannerConta()}
+    ${caixaLink('Link para os seus clientes', linkDe(SHOP.slug), 'Divulgue no WhatsApp, Instagram e no balcão. O cliente entra na fila sem cadastro.',
+      `Entre na fila da ${SHOP.nome} pelo celular, sem esperar no balcão: ${linkDe(SHOP.slug)}`)}
+    <div class="tabs">${tabsDisponiveis().map(t => `<button class="tab${S.tab === t ? ' on' : ''}" data-a="tab" data-t="${t}">${ROTULO_TAB[t]}</button>`).join('')}</div>
+    <div id="tab"></div>`;
+}
+
+async function carregarFila(){
+  try { S.fila = await rpc('adm_fila', {p_token: S.token}); if (S.tab === 'fila') renderTab(); }
+  catch (e) { adminErr(e); }
+}
+async function carregarAtend(){
+  try { S.atend = await rpc('adm_atendimentos', {p_token: S.token}) || []; }
+  catch (e) { adminErr(e); }
+}
+async function carregarProfs(){
+  try { S.profs = await rpc('adm_profissionais', {p_token: S.token}) || []; } catch (e) { adminErr(e); }
+}
+async function carregarProfDet(){
+  try { S.profDet = await rpc('dono_profissionais', {p_token: S.token}) || []; } catch (e) { adminErr(e); }
+}
+async function carregarDesp(){
+  try { S.desp = await rpc('dono_despesas', {p_token: S.token}) || []; } catch (e) { adminErr(e); }
+}
+
+function renderTab(){
+  const el = document.getElementById('tab'); if (!el) return;
+  const views = { fila: viewFila, fat: viewFat, cli: viewCli, equipe: viewEquipe, despesas: viewDespesas,
+    relatorios: viewRelatorios, ajustes: viewAjustes, senhas: viewSenhas, plano: viewPlano };
+  el.innerHTML = (views[S.tab] || viewFila)();
+  if (S.tab === 'cli') renderCliLista();
+}
+
+function tickTimers(){
+  if (S.tab !== 'fila') return;
+  for (const f of S.fila) {
+    if (f.status !== 'chamado' || !f.chamado_em) continue;
+    const s = restante(f), el = document.querySelector(`[data-t="${f.id}"]`);
+    if (el) { el.textContent = '⏱ ' + mmss(s); el.classList.toggle('late', s < 60); }
+    if (s === 0 && !expirando.has(f.id)) {
+      expirando.add(f.id);
+      rpc('adm_remover', {p_token: S.token, p_id: f.id}).then(carregarFila).catch(adminErr);
+    }
+  }
+}
+
+/* ---------- Aba Fila ---------- */
+function viewFila(){
+  const r = resumoFaturamento(S.atend);
+  return `${nivel() >= 2 ? `<div class="card center"><div class="mut">Hoje</div><div class="kbig">${brl(r.hoje.total)}</div>
+      <div class="mut">${r.hoje.qtd} atendimento(s) finalizado(s)</div></div>` : ''}
+    <div class="card">${S.fila.length ? S.fila.map(itemFila).join('') : '<p class="mut center">Ninguém na fila.</p>'}</div>`;
+}
+function itemFila(f, i){
+  return `<div class="item"><div class="pos">${i + 1}</div>
+    <div class="grow"><div class="name">${esc(f.nome)}${f.visitas ? ` <span class="tag">${f.visitas} visita(s)</span>` : ' <span class="tag">novo</span>'}</div>
+    <div class="mut">${maskPhone(f.telefone)} · chegou ${fmtTime(f.entrada)}</div>
+    ${f.status === 'chamado' && f.chamado_em ? `<div class="timer" data-t="${f.id}">⏱ ${mmss(restante(f))}</div>` : ''}
+    <div class="actions">
+      <button class="green sm" data-a="chamar" data-id="${f.id}">${f.status === 'chamado' ? 'Chamar de novo' : '📲 Chamar'}</button>
+      <button class="btn sm" style="width:auto;margin:0" data-a="finalizar" data-id="${f.id}">✔ Finalizar</button>
+      <button class="red sm" data-a="remover" data-id="${f.id}">${f.status === 'chamado' ? 'Liberar' : 'Remover'}</button>
+    </div></div></div>`;
+}
+
+function abrirFinalizar(f){
+  const ativos = S.profs.filter(p => p.ativo);
+  S.fin = { id: f.id, nome: f.nome, forma: null };
+  $modal.innerHTML = `<div class="ov"><div class="sheet">
+    <h2>Finalizar ${esc(f.nome)}</h2>
+    <p class="mut">Escolha o serviço ou digite o valor cobrado.</p>
+    <div class="chips">${SHOP.servicos.map((s, i) => `<button class="chip" data-a="svc" data-i="${i}">${esc(s.nome)} · ${brl(s.preco)}</button>`).join('')}</div>
+    <label for="f-serv">Serviço</label><input id="f-serv" placeholder="Ex.: Corte">
+    <label for="f-val">Valor (R$)</label><input id="f-val" inputmode="decimal" placeholder="0,00">
+    ${ativos.length ? `<label for="f-prof">Quem atendeu</label><select id="f-prof"><option value="">Escolha…</option>
+      ${ativos.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}</select>` : ''}
+    <label>Forma de pagamento</label>
+    <div class="seg">${Object.entries(FORMAS).map(([k, v]) => `<button data-a="forma" data-f="${k}">${v}</button>`).join('')}</div>
+    <div class="err" id="f-err"></div>
+    <div class="actions" style="margin-top:14px"><button class="btn ghost sm" data-a="fcancel">Cancelar</button>
+    <button class="btn sm" style="width:auto;margin:0" data-a="fok" data-id="${f.id}">Confirmar</button></div></div></div>`;
+}
+
+// para onde vai o Pix: chave do profissional (se ele recebe direto) ou da barbearia
+function destinoPix(profId){
+  const p = profId ? S.profs.find(x => x.id === profId) : null;
+  if (p && p.recebe_direto && p.pix_chave) return { chave: p.pix_chave, nome: p.nome_completo, quem: p.nome };
+  if (S.conta && S.conta.pix_chave) return { chave: S.conta.pix_chave, nome: S.conta.pix_nome || SHOP.nome, quem: SHOP.nome };
+  return null;
+}
+
+function mostrarPix(valor, profId, cliente){
+  const d = destinoPix(profId);
+  if (!d) {
+    $modal.innerHTML = `<div class="ov"><div class="sheet center"><h2>Atendimento registrado</h2>
+      <p class="mut">Para mostrar o QR Code do Pix, ${S.papel === 'dono' ? 'cadastre a chave Pix da barbearia na aba Ajustes (ou a do profissional na aba Equipe)' : 'peça ao dono para cadastrar a chave Pix'}.</p>
+      <button class="btn" data-a="fcancel">Fechar</button></div></div>`;
+    return;
+  }
+  const codigo = pixCopiaECola({ chave: d.chave, nome: d.nome, cidade: (S.conta && S.conta.cidade) || 'Brasil', valor });
+  $modal.innerHTML = `<div class="ov"><div class="sheet center">
+    <h2>Pix de ${brl(valor)}</h2>
+    <p class="mut">${esc(cliente)} pode escanear o código com o app do banco. O valor vai para ${esc(d.quem)}.</p>
+    <div class="qr">${qrSvg(codigo)}</div>
+    <p class="mut">Ou use o Pix copia e cola:</p>
+    <div class="copia" id="pix-txt">${esc(codigo)}</div>
+    <div class="actions" style="justify-content:center;margin-top:12px">
+      <button class="btn ghost sm" data-a="copiar">Copiar código</button>
+      <button class="btn sm" style="width:auto;margin:0" data-a="fcancel">Recebi, fechar</button></div>
+    <p class="mut" style="margin-top:10px">Confira no app do banco se o Pix entrou antes de liberar o cliente.</p></div></div>`;
+}
+
+async function onModalClick(e){
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  const a = b.dataset.a;
+  if (a === 'fcancel') { $modal.innerHTML = ''; return; }
+  if (a === 'copiar') {
+    const t = document.getElementById('pix-txt').textContent;
+    try { await navigator.clipboard.writeText(t); b.textContent = 'Copiado!'; }
+    catch { const r = document.createRange(); r.selectNodeContents(document.getElementById('pix-txt')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+    return;
+  }
+  if (a === 'svc') {
+    const s = SHOP.servicos[Number(b.dataset.i)]; if (!s) return;
+    document.getElementById('f-serv').value = s.nome;
+    document.getElementById('f-val').value = String(s.preco).replace('.', ',');
+    return;
+  }
+  if (a === 'forma') {
+    S.fin.forma = b.dataset.f;
+    b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    return;
+  }
+  if (a === 'fok') {
+    const err = document.getElementById('f-err'); err.textContent = '';
+    const val = parseValor(document.getElementById('f-val').value);
+    if (val === null) return err.textContent = 'Digite um valor válido (ex.: 35 ou 35,50).';
+    const sel = document.getElementById('f-prof'), prof = sel && sel.value ? Number(sel.value) : null;
+    if (sel && !prof) return err.textContent = 'Escolha quem atendeu.';
+    if (!S.fin.forma) return err.textContent = 'Escolha a forma de pagamento.';
+    const forma = S.fin.forma, cliente = S.fin.nome;
+    b.disabled = true;
+    try {
+      await rpc('adm_finalizar', {p_token: S.token, p_id: Number(b.dataset.id), p_servico: document.getElementById('f-serv').value.trim(),
+                                  p_valor: val, p_profissional: prof, p_forma: forma});
+      $modal.innerHTML = '';
+      if (forma === 'pix' && val > 0) mostrarPix(val, prof, cliente);
+      await Promise.all([carregarFila(), nivel() >= 2 ? carregarAtend() : null]); renderTab();
+    } catch (ex) { b.disabled = false; if (!adminErr(ex)) err.textContent = msgErro(ex); }
+    return;
+  }
+  if (a === 'psalvar') return salvarProfissional(b);
+}
+
+/* ---------- Aba Faturamento ---------- */
+const varTag = p => p === null ? '<span class="mut">sem base</span>'
+  : (p >= 0 ? `<span class="up">▲ ${p.toFixed(0)}%</span>` : `<span class="down">▼ ${Math.abs(p).toFixed(0)}%</span>`);
+const kpi = (rot, valor, sub) => `<div class="kpi"><small>${rot}</small><b>${valor}</b><small>${sub}</small></div>`;
+
+function viewFat(){
+  if (!S.atend.length) return `<div class="card center"><p class="mut">Ainda não há atendimentos finalizados. Toque em “Finalizar” na fila para registrar o valor de cada atendimento.</p></div>`;
+  const r = resumoFaturamento(S.atend), dias = serieDiaria(S.atend, 14), semanas = serieSemanal(S.atend, 8), serv = porServico(S.atend, 30);
+  const max = Math.max(...dias.map(d => d.total), 1);
+  return `<div class="kpis">
+      ${kpi('Hoje', brl(r.hoje.total), `${r.hoje.qtd} atend. · ${varTag(variacao(r.hoje.total, r.ontem.total))} vs ontem`)}
+      ${kpi('Esta semana', brl(r.sem.total), `${r.sem.qtd} atend. · ${varTag(variacao(r.sem.total, r.semAnt.total))} vs mesmo período da semana passada`)}
+      ${kpi('Este mês', brl(r.mes.total), `${r.mes.qtd} atend. · ${varTag(variacao(r.mes.total, r.mesAnt.total))} vs mesmo período do mês passado`)}
+      ${kpi('Ticket médio (30 dias)', brl(r.ticket), `${r.d30.qtd} atend. · ${brl(r.d30.total)} no total`)}
+    </div>
+    <div class="card"><h2>Últimos 14 dias</h2>
+      <div class="bars">${dias.map((d, i) => `<div class="bcol"><div class="bv">${d.total ? curto(d.total) : ''}</div>
+        <div class="bar${i === dias.length - 1 ? ' hoje' : ''}" style="height:${Math.max(d.total / max * 120, d.total ? 4 : 1)}px"></div>
+        <div class="bl">${String(d.dia.getDate()).padStart(2, '0')}</div></div>`).join('')}</div></div>
+    <div class="card"><h2>Semana a semana (seg–dom)</h2>
+      ${semanas.map((w, i) => { const ant = semanas[i - 1];
+        return `<div class="trow"><span>${dm(w.inicio)} – ${dm(addDays(w.inicio, 6))}</span><span>${brl(w.total)} · ${w.qtd} atend.</span>
+        <span>${w.parcial ? '<span class="mut">em andamento</span>' : (ant ? varTag(variacao(w.total, ant.total)) : '')}</span></div>`; }).reverse().join('')}</div>
+    <div class="card"><h2>Por serviço (30 dias)</h2>
+      ${serv.length ? serv.map(s => `<div class="trow"><span>${esc(s.servico)}</span><span>${s.qtd}x · ${brl(s.total)}</span></div>`).join('') : '<p class="mut">Sem dados.</p>'}</div>
+    <div class="card"><h2>Por forma de pagamento (30 dias)</h2>
+      ${porForma(S.atend, 30).map(x => `<div class="trow"><span>${x.rotulo}</span><span>${x.qtd}x · ${brl(x.total)}</span></div>`).join('')}</div>
+    ${S.papel === 'dono' ? `<div class="card"><h2>Últimos atendimentos (só o dono corrige)</h2>
+      ${S.atend.slice(0, 12).map(a => `<div class="item"><div class="grow"><div class="name">${esc(a.nome)} · ${brl(a.valor)}</div>
+        <div class="mut">${dm(new Date(a.finalizado_em))} ${fmtTime(a.finalizado_em)} · ${esc(a.servico || 'sem serviço')}</div></div>
+        <button class="btn ghost sm" data-a="edval" data-id="${a.id}">Editar</button>
+        <button class="red sm" data-a="delat" data-id="${a.id}">Excluir</button></div>`).join('')}</div>` : ''}`;
+}
+
+/* ---------- Aba Clientes ---------- */
+function viewCli(){
+  if (!S.atend.length) return `<div class="card center"><p class="mut">A rotina dos clientes aparece aqui depois dos primeiros atendimentos finalizados.</p></div>`;
+  const c = contagemClientes(analisarClientes(S.atend)), R = CONFIG.ROTINA;
+  return `<div class="kpis">
+      ${kpi('Em rotina', c.rotina, 'voltam no prazo habitual')}
+      ${kpi('Atrasados', c.atrasado, `passaram ${Math.round((R.margem - 1) * 100)}% do intervalo habitual`)}
+      ${kpi('Sumiram', c.sumido, `passaram ${R.sumido}x o intervalo habitual`)}
+      ${kpi('Espaçando visitas', c.espacando, 'a última volta demorou bem mais que o normal')}
+    </div>
+    <input id="busca" placeholder="Buscar por nome ou telefone" value="${esc(S.busca)}" oninput="S.busca=this.value.toLowerCase();renderCliLista()">
+    <div class="card" style="margin-top:14px" id="clilist"></div>
+    <p class="mut">Intervalo habitual = média de dias entre as visitas do próprio cliente (precisa de 2 visitas). Estas regras são estimativas.</p>`;
+}
+function renderCliLista(){
+  const el = document.getElementById('clilist'); if (!el) return;
+  const q = S.busca, qd = digits(q);
+  const lista = analisarClientes(S.atend).filter(c => !q || c.nome.toLowerCase().includes(q) || (qd && c.telefone.includes(qd)));
+  const tag = { rotina: ['ok', 'Em rotina'], atrasado: ['warn', 'Atrasado'], sumido: ['bad', 'Sumiu'], novo: ['', 'Novo'] };
+  el.innerHTML = lista.length ? lista.map(c => `<div class="item"><div class="grow">
+      <div class="name">${esc(c.nome)} <span class="tag ${tag[c.status][0]}">${tag[c.status][1]}</span>${c.espacando ? ' <span class="tag warn">Espaçando</span>' : ''}</div>
+      <div class="mut">${maskPhone(c.telefone)} · ${c.visitas} visita(s) · ${brl(c.total)} no total</div>
+      <div class="mut">${c.ciclo ? `Costuma vir a cada ${c.ciclo} dias · ` : ''}última vez há ${c.desde} dia(s)${c.proxima && c.status === 'rotina' ? ` · próxima esperada ${dm(c.proxima)}` : ''}</div></div>
+      ${c.status === 'atrasado' || c.status === 'sumido' || c.espacando ? `<button class="green sm" data-a="voltar" data-tel="${c.telefone}" data-nome="${esc(c.nome)}">Chamar de volta</button>` : ''}
+    </div>`).join('') : '<p class="mut center">Nenhum cliente encontrado.</p>';
+}
+
+/* ---------- Aba Senhas (só o dono) ---------- */
+function viewSenhas(){
+  const bloco = (quem, titulo) => `<div class="card"><h2>${titulo}</h2>
+    <label>Nova senha (mínimo 6 caracteres)</label><input id="np-${quem}" type="password" autocomplete="new-password">
+    <button class="btn sm" style="margin-top:12px" data-a="trocar" data-quem="${quem}">Salvar</button></div>`;
+  return `${bloco('dono', 'Senha do dono (a sua)')}${bloco('barbeiro', 'Senha do barbeiro')}
+    <div class="err" id="pw-msg"></div>
+    <p class="mut">Ao trocar a senha do barbeiro, ele precisa entrar de novo. As duas senhas devem ser diferentes.</p>`;
+}
+
+/* ---------- Aba Equipe (Pro e Expert, só o dono) ---------- */
+const TIPOS = { comissao: 'Comissão', aluguel: 'Aluguel de cadeira', aluguel_comissao: 'Aluguel + comissão', salario: 'Salário fixo', nenhum: 'Sem repasse' };
+const PIX_TIPOS = { cpf: 'CPF', cnpj: 'CNPJ', email: 'E-mail', telefone: 'Celular', aleatoria: 'Chave aleatória' };
+const pctTxt = v => String(Number(v)).replace('.', ',') + '%';
+function descTipo(p){
+  const alug = () => `${brl(p.aluguel_valor)} por ${p.aluguel_periodo === 'mensal' ? 'mês' : 'semana'}`;
+  if (p.tipo === 'comissao') return `Comissão: recebe ${pctTxt(p.comissao_pct)} de cada atendimento`;
+  if (p.tipo === 'aluguel') return `Aluguel de cadeira: paga ${alug()} e fica com os atendimentos`;
+  if (p.tipo === 'aluguel_comissao') return `Paga ${alug()} e recebe ${pctTxt(p.comissao_pct)} de cada atendimento`;
+  if (p.tipo === 'salario') return `Salário fixo de ${brl(p.salario)} por mês`;
+  return 'Sem repasse';
+}
+function viewEquipe(){
+  const hoje = new Date(), r = repassesDoMes(S.atend, S.profDet, hoje.getFullYear(), hoje.getMonth());
+  const lista = S.profDet.length ? S.profDet.map(p => `<div class="item"><div class="grow">
+      <div class="name">${esc(p.nome)}${p.apelido ? ` <span class="mut">(${esc(p.apelido)})</span>` : ''}
+        <span class="tag ${p.ativo ? 'ok' : 'bad'}">${p.ativo ? esc(p.funcao) : 'Saiu'}</span></div>
+      <div class="mut">${esc(descTipo(p))}</div>
+      <div class="mut">CPF ${cpfOculto(p.cpf)} · ${idade(p.nascimento)} anos${p.telefone ? ' · ' + maskPhone(p.telefone) : ''}</div>
+      <div class="mut">${p.pix_chave ? `Pix (${PIX_TIPOS[p.pix_tipo]}): ${esc(p.pix_chave)}${p.recebe_direto ? ' · recebe o Pix dos clientes direto' : ''}` : 'Sem chave Pix'}</div></div>
+      <button class="btn ghost sm" data-a="pedit" data-id="${p.id}">Editar</button></div>`).join('')
+    : '<p class="mut">Nenhum profissional cadastrado. Cadastre quem trabalha na barbearia para saber quem atendeu cada cliente e calcular comissões e aluguéis.</p>';
+  return `<button class="btn" data-a="pnovo" style="margin:0 0 14px">+ Cadastrar profissional</button>
+    <div class="card"><h2>Profissionais</h2>${lista}</div>
+    ${r.linhas.length ? `<div class="card"><h2>Acerto de ${MESES[hoje.getMonth()]} até hoje</h2>
+      ${r.linhas.map(l => `<div class="trow"><span>${esc(l.p.apelido || l.p.nome.split(' ')[0])}<br><span class="mut">${l.atend} atend. · produziu ${brl(l.producao)}</span></span>
+        <span style="text-align:right">${l.parte ? `Recebe ${brl(l.parte)}<br>` : ''}${l.aluguel ? `Paga aluguel ${brl(l.aluguel)}${l.p.aluguel_periodo === 'semanal' ? ' (aprox.)' : ''}<br>` : ''}${l.salario ? `Salário ${brl(l.salario)}` : ''}${!l.parte && !l.aluguel && !l.salario ? '<span class="mut">sem repasse</span>' : ''}</span></div>`).join('')}
+      <p class="mut" style="margin-top:8px">Aluguel semanal calculado pelos dias do mês ÷ 7. Só entram atendimentos com "quem atendeu" escolhido no Finalizar.</p></div>` : ''}
+    <p class="mut">Os dados pessoais (CPF, nascimento, endereço) aparecem só para o dono. O barbeiro vê apenas o nome para escolher quem atendeu.</p>`;
+}
+
+function abrirProfissional(p){
+  p = p || { tipo: 'comissao', ativo: true, funcao: 'Barbeiro', inicio: isoDia(new Date()) };
+  const v = k => esc(p[k] ?? '');
+  const opt = (obj, sel) => Object.entries(obj).map(([k, t]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${t}</option>`).join('');
+  $modal.innerHTML = `<div class="ov"><div class="sheet">
+    <h2>${p.id ? 'Editar profissional' : 'Novo profissional'}</h2>
+    <label for="p-nome">Nome completo *</label><input id="p-nome" value="${v('nome')}" autocomplete="off">
+    <label for="p-apelido">Como é chamado na barbearia</label><input id="p-apelido" value="${v('apelido')}" placeholder="Ex.: Juninho">
+    <div class="grid2"><div><label for="p-cpf">CPF *</label><input id="p-cpf" inputmode="numeric" value="${esc(fmtCpf(p.cpf))}"></div>
+      <div><label for="p-nasc">Nascimento *</label><input id="p-nasc" type="date" value="${v('nascimento')}"></div></div>
+    <div class="grid2"><div><label for="p-tel">Celular</label><input id="p-tel" inputmode="numeric" value="${esc(p.telefone ? maskPhone(p.telefone) : '')}"></div>
+      <div><label for="p-funcao">Função</label><input id="p-funcao" value="${v('funcao')}"></div></div>
+    <label for="p-email">E-mail</label><input id="p-email" type="email" value="${v('email')}">
+    <label for="p-end">Endereço</label><input id="p-end" value="${v('endereco')}">
+    <label for="p-inicio">Começou em</label><input id="p-inicio" type="date" value="${v('inicio')}">
+    <label for="p-tipo">Forma de trabalho *</label><select id="p-tipo">${opt(TIPOS, p.tipo)}</select>
+    <div id="g-pct"><label for="p-pct">Comissão: o profissional recebe (%)</label><input id="p-pct" inputmode="decimal" value="${p.comissao_pct != null ? String(p.comissao_pct).replace('.', ',') : ''}" placeholder="Ex.: 50"></div>
+    <div id="g-alug" class="grid2"><div><label for="p-alug">Aluguel da cadeira (R$)</label><input id="p-alug" inputmode="decimal" value="${p.aluguel_valor != null ? String(p.aluguel_valor).replace('.', ',') : ''}"></div>
+      <div><label for="p-per">Cobrado por</label><select id="p-per">${opt({ semanal: 'Semana', mensal: 'Mês' }, p.aluguel_periodo || 'semanal')}</select></div></div>
+    <div id="g-sal"><label for="p-sal">Salário mensal (R$)</label><input id="p-sal" inputmode="decimal" value="${p.salario != null ? String(p.salario).replace('.', ',') : ''}"></div>
+    <h2 style="margin-top:18px">Pix para receber</h2>
+    <div class="grid2"><div><label for="p-pixt">Tipo de chave</label><select id="p-pixt"><option value="">Sem chave</option>${opt(PIX_TIPOS, p.pix_tipo)}</select></div>
+      <div><label for="p-pix">Chave Pix</label><input id="p-pix" value="${v('pix_chave')}" autocapitalize="off"></div></div>
+    <label class="chk"><input type="checkbox" id="p-direto"${p.recebe_direto ? ' checked' : ''}> O Pix dos clientes que ele atender cai direto na chave dele (comum no aluguel de cadeira)</label>
+    <label for="p-obs">Observações</label><textarea id="p-obs" rows="2">${v('obs')}</textarea>
+    ${p.id ? `<label class="chk"><input type="checkbox" id="p-ativo"${p.ativo ? ' checked' : ''}> Trabalha aqui atualmente</label>` : ''}
+    <div class="err" id="p-err"></div>
+    <div class="actions" style="margin-top:14px"><button class="btn ghost sm" data-a="fcancel">Cancelar</button>
+      <button class="btn sm" style="width:auto;margin:0" data-a="psalvar" data-id="${p.id || ''}">Salvar</button></div></div></div>`;
+  const tipo = document.getElementById('p-tipo');
+  const mostrar = () => { const t = tipo.value;
+    document.getElementById('g-pct').hidden = !(t === 'comissao' || t === 'aluguel_comissao');
+    document.getElementById('g-alug').hidden = !(t === 'aluguel' || t === 'aluguel_comissao');
+    document.getElementById('g-sal').hidden = t !== 'salario'; };
+  tipo.onchange = mostrar; mostrar();
+  document.getElementById('p-cpf').oninput = e => { e.target.value = maskCpf(e.target.value); };
+  document.getElementById('p-tel').oninput = e => { e.target.value = maskPhone(e.target.value); };
+}
+
+async function salvarProfissional(b){
+  const g = id => document.getElementById(id), err = g('p-err'); err.textContent = '';
+  const num = id => { const x = parseValor(g(id).value); return x === null ? null : x; };
+  const dados = {
+    id: b.dataset.id || null, nome: g('p-nome').value.trim(), apelido: g('p-apelido').value.trim(),
+    cpf: digits(g('p-cpf').value), nascimento: g('p-nasc').value, telefone: digits(g('p-tel').value),
+    funcao: g('p-funcao').value.trim(), email: g('p-email').value.trim(), endereco: g('p-end').value.trim(),
+    inicio: g('p-inicio').value || null, tipo: g('p-tipo').value,
+    comissao_pct: num('p-pct'), aluguel_valor: num('p-alug'), aluguel_periodo: g('p-per').value, salario: num('p-sal'),
+    pix_tipo: g('p-pixt').value || null, pix_chave: g('p-pix').value.trim(), recebe_direto: g('p-direto').checked,
+    obs: g('p-obs').value.trim(), ativo: g('p-ativo') ? g('p-ativo').checked : true
+  };
+  if (dados.nome.split(/\s+/).length < 2) return err.textContent = ERROS.nome_completo;
+  if (!cpfValido(dados.cpf)) return err.textContent = ERROS.cpf_invalido;
+  if (!dados.nascimento) return err.textContent = ERROS.nascimento_invalido;
+  if (dados.pix_tipo && !dados.pix_chave) return err.textContent = 'Digite a chave Pix ou escolha "Sem chave".';
+  if (dados.recebe_direto && !dados.pix_tipo) return err.textContent = 'Para receber direto, cadastre a chave Pix dele.';
+  try {
+    await rpc('dono_salvar_profissional', {p_token: S.token, p: dados});
+    $modal.innerHTML = '';
+    await Promise.all([carregarProfDet(), carregarProfs()]); renderTab();
+  } catch (ex) { if (!adminErr(ex)) err.textContent = msgErro(ex); }
+}
+
+/* ---------- Aba Despesas (Expert, só o dono) ---------- */
+const CATEGORIAS = ['Aluguel do ponto', 'Água', 'Luz', 'Internet e telefone', 'Produtos', 'Equipamentos', 'Manutenção',
+  'Salários e encargos', 'Impostos e taxas', 'Marketing', 'Outros'];
+function despesasDoMes(ano, mes){
+  return S.desp.filter(d => { const t = parseDia(d.data); return t.getFullYear() === ano && t.getMonth() === mes; });
+}
+function navMes(acao, ano, mes){
+  return `<div class="row" style="margin-bottom:12px"><button class="btn ghost sm" data-a="${acao}" data-d="-1">◀</button>
+    <b>${MESES[mes]} de ${ano}</b><button class="btn ghost sm" data-a="${acao}" data-d="1">▶</button></div>`;
+}
+function viewDespesas(){
+  if (!S.despMes) { const h = new Date(); S.despMes = { ano: h.getFullYear(), mes: h.getMonth() }; }
+  const { ano, mes } = S.despMes, lista = despesasDoMes(ano, mes), total = lista.reduce((s, d) => s + Number(d.valor), 0);
+  const porCat = {}; lista.forEach(d => porCat[d.categoria] = (porCat[d.categoria] || 0) + Number(d.valor));
+  return `<div class="card"><h2>Lançar despesa</h2>
+      <div class="grid2"><div><label for="d-data">Data</label><input id="d-data" type="date" value="${isoDia(new Date())}"></div>
+        <div><label for="d-valor">Valor (R$)</label><input id="d-valor" inputmode="decimal" placeholder="0,00"></div></div>
+      <label for="d-cat">Categoria</label><select id="d-cat">${CATEGORIAS.map(c => `<option>${c}</option>`).join('')}</select>
+      <label for="d-desc">Descrição</label><input id="d-desc" maxlength="120" placeholder="Ex.: conta de luz de setembro">
+      <div class="err" id="d-err"></div><button class="btn" data-a="dsalvar">Salvar despesa</button></div>
+    ${navMes('dmes', ano, mes)}
+    <div class="kpis">${kpi('Total do mês', brl(total), `${lista.length} lançamento(s)`)}
+      ${kpi('Maior categoria', Object.keys(porCat).length ? esc(Object.entries(porCat).sort((a, b) => b[1] - a[1])[0][0]) : '—', Object.keys(porCat).length ? brl(Math.max(...Object.values(porCat))) : '')}</div>
+    <div class="card"><h2>Lançamentos</h2>
+      ${lista.length ? lista.map(d => `<div class="item"><div class="grow"><div class="name">${esc(d.categoria)} · ${brl(d.valor)}</div>
+        <div class="mut">${dm(parseDia(d.data))}${d.descricao ? ' · ' + esc(d.descricao) : ''}</div></div>
+        <button class="red sm" data-a="dexcluir" data-id="${d.id}">Excluir</button></div>`).join('') : '<p class="mut">Nenhuma despesa neste mês.</p>'}</div>`;
+}
+
+/* ---------- Aba Relatórios (Expert, só o dono) ---------- */
+function resumoMes(ano, mes){
+  const r = repassesDoMes(S.atend, S.profDet, ano, mes);
+  const desp = despesasDoMes(ano, mes), totDesp = desp.reduce((s, d) => s + Number(d.valor), 0);
+  const porCat = {}; desp.forEach(d => porCat[d.categoria] = (porCat[d.categoria] || 0) + Number(d.valor));
+  const lucro = r.receita - r.parte - r.salario + r.aluguel - totDesp;
+  return { ...r, totDesp, porCat, lucro };
+}
+const linhaR = (rot, v, cls = '') => `<div class="trow"><span>${rot}</span><span class="${cls}">${v}</span></div>`;
+function viewRelatorios(){
+  const R = S.rel, seg = `<div class="seg"><button data-a="rmodo" data-m="mes" class="${R.modo === 'mes' ? 'on' : ''}">Mensal</button>
+    <button data-a="rmodo" data-m="ano" class="${R.modo === 'ano' ? 'on' : ''}">Anual</button></div>`;
+  if (R.modo === 'mes') {
+    const x = resumoMes(R.ano, R.mes);
+    return `${seg}${navMes('rmes', R.ano, R.mes)}
+      <div class="kpis">${kpi('Receita', brl(x.receita), `${x.qtd} atendimento(s)`)}
+        ${kpi('Lucro', `<span class="${x.lucro < 0 ? 'neg' : ''}">${brl(x.lucro)}</span>`, 'receita − repasses − despesas')}
+        ${kpi('Despesas', brl(x.totDesp), `${Object.keys(x.porCat).length} categoria(s)`)}
+        ${kpi('Ticket médio', brl(x.qtd ? x.receita / x.qtd : 0), 'por atendimento')}</div>
+      <div class="card"><h2>Resultado do mês</h2>
+        ${linhaR('Receita dos atendimentos', brl(x.receita))}
+        ${linhaR('(−) Comissões e parte dos profissionais', '− ' + brl(x.parte), 'neg')}
+        ${linhaR('(−) Salários', '− ' + brl(x.salario), 'neg')}
+        ${linhaR('(+) Aluguel de cadeiras', '+ ' + brl(x.aluguel), 'pos')}
+        ${linhaR('(−) Despesas', '− ' + brl(x.totDesp), 'neg')}
+        ${linhaR('<b>Lucro</b>', `<b>${brl(x.lucro)}</b>`, x.lucro < 0 ? 'neg' : 'pos')}</div>
+      <div class="card"><h2>Formas de pagamento</h2>
+        ${Object.entries(x.formas).filter(([k, v]) => k || v).map(([k, v]) => linhaR(FORMAS[k] || 'Não informado', brl(v))).join('')}</div>
+      ${x.linhas.length ? `<div class="card"><h2>Por profissional</h2>
+        ${x.linhas.map(l => `<div class="trow"><span>${esc(l.p.apelido || l.p.nome.split(' ')[0])}<br><span class="mut">${l.atend} atend. · ${TIPOS[l.p.tipo]}</span></span>
+          <span style="text-align:right">Produziu ${brl(l.producao)}<br><span class="mut">fica p/ casa ${brl(l.casa)}</span></span></div>`).join('')}</div>` : ''}
+      <div class="card"><h2>Despesas por categoria</h2>
+        ${Object.keys(x.porCat).length ? Object.entries(x.porCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => linhaR(esc(c), brl(v))).join('') : '<p class="mut">Nenhuma despesa lançada.</p>'}</div>
+      <p class="mut">O aluguel semanal é estimado pelos dias do mês ÷ 7. Atendimentos sem "quem atendeu" contam inteiros para a barbearia.</p>`;
+  }
+  const meses = MESES.map((_, m) => ({ m, ...resumoMes(R.ano, m) }));
+  const tot = k => meses.reduce((s, x) => s + x[k], 0);
+  const rep = x => x.parte + x.salario - x.aluguel;
+  return `${seg}<div class="row" style="margin-bottom:12px"><button class="btn ghost sm" data-a="rano" data-d="-1">◀</button>
+      <b>${R.ano}</b><button class="btn ghost sm" data-a="rano" data-d="1">▶</button></div>
+    <div class="kpis">${kpi('Receita do ano', brl(tot('receita')), `${tot('qtd')} atendimento(s)`)}
+      ${kpi('Lucro do ano', `<span class="${tot('lucro') < 0 ? 'neg' : ''}">${brl(tot('lucro'))}</span>`, `despesas ${brl(tot('totDesp'))}`)}</div>
+    <div class="card"><h2>Mês a mês</h2>
+      <div class="trow mut"><span>Mês</span><span>Receita</span><span>Repasses</span><span>Despesas</span><span>Lucro</span></div>
+      ${meses.map(x => `<div class="trow" style="font-size:13px"><span>${MESES[x.m].slice(0, 3)}</span><span>${curto(x.receita)}</span>
+        <span>${curto(rep(x))}</span><span>${curto(x.totDesp)}</span><span class="${x.lucro < 0 ? 'neg' : ''}">${x.lucro < 0 ? '−' : ''}${curto(Math.abs(x.lucro))}</span></div>`).join('')}
+      <div class="trow"><b>Total</b><b>${curto(tot('receita'))}</b><b>${curto(meses.reduce((s, x) => s + rep(x), 0))}</b><b>${curto(tot('totDesp'))}</b><b>${curto(tot('lucro'))}</b></div></div>
+    <p class="mut">Valores em reais (k = mil). Repasses = comissões + salários − aluguéis recebidos.</p>`;
+}
+
+/* ---------- Aba Plano (só o dono) ---------- */
+const RECURSOS = {
+  basic: ['Fila online pelo celular', 'Chamada pelo WhatsApp', 'QR Code Pix no fim do corte'],
+  pro: ['Tudo do Basic', 'Faturamento do dia, semana e mês', 'Rotina dos clientes e "chamar de volta"', 'Cadastro de barbeiros: comissão, aluguel de cadeira ou salário'],
+  expert: ['Tudo do Pro', 'Despesas da barbearia', 'Relatórios mensais e anuais com lucro', 'Acerto de cada profissional']
+};
+const SIT = { isento: 'Isenta de mensalidade', ativo: 'Em dia', teste: 'Teste grátis', aviso: 'Vencida (período de aviso)', bloqueado: 'Vencida, painel pausado' };
+function viewPlano(){
+  const c = S.conta;
+  if (c.isento) return `<div class="card center"><h2>Plano ${NOME_PLANO[c.plano]}</h2><p class="mut">Sua barbearia é isenta de mensalidade. Todas as funções do plano estão liberadas.</p></div>`;
+  return `<div class="card"><h2>Sua assinatura</h2>
+      ${linhaR('Plano', NOME_PLANO[c.plano])}${linhaR('Situação', SIT[c.situacao] || c.situacao)}
+      ${c.vence_em ? linhaR(c.situacao === 'teste' ? 'Teste até' : 'Pago até', `${dm(new Date(c.vence_em))}/${new Date(c.vence_em).getFullYear()}`) : ''}
+      ${c.tem_assinatura ? linhaR('Cobrança automática', c.mp_status === 'authorized' ? 'Ativa no Mercado Pago' : esc(c.mp_status || '—')) : ''}</div>
+    <label for="mp-email">E-mail da sua conta no Mercado Pago</label><input id="mp-email" type="email" autocomplete="email" placeholder="voce@email.com">
+    <div class="err" id="mp-err"></div>
+    <div class="planos" style="margin-top:12px">${S.planos.map(p => `<div class="plano${p.codigo === c.plano ? ' atual' : ''}">
+      <div class="row"><b style="font-size:18px">${esc(p.nome)}</b><span class="preco">${brl(p.preco)}<small class="mut">/mês</small></span></div>
+      <ul>${(RECURSOS[p.codigo] || []).map(x => `<li>${x}</li>`).join('')}</ul>
+      <button class="btn" data-a="assinar" data-p="${p.codigo}">${p.codigo === c.plano && c.mp_status === 'authorized' ? 'Seu plano atual' : `Assinar ${esc(p.nome)}`}</button></div>`).join('')}</div>
+    <p class="mut" style="margin-top:12px">A cobrança é mensal e automática no cartão, pelo Mercado Pago. Ao trocar de plano, a assinatura anterior é cancelada sozinha.</p>
+    ${c.tem_assinatura && c.mp_status === 'authorized' ? `<button class="btn ghost" data-a="cancelar-assin">Cancelar assinatura</button>` : ''}`;
+}
+
+async function chamarAssinatura(corpo){ return DEMO.assinar({ token: S.token, ...corpo }); }
+
+/* ---------- Aba Ajustes (só o dono) ---------- */
+const servicosTexto = lista => lista.map(s => `${s.nome} = ${String(s.preco).replace('.', ',')}`).join('\n');
+function lerServicos(txt){
+  const out = [];
+  for (const linha of String(txt || '').split('\n')) {
+    if (!linha.trim()) continue;
+    const m = linha.match(/^(.+?)\s*[=:]\s*(?:R\$\s*)?([\d.,]+)\s*$/i);
+    if (!m) return null;
+    const preco = parseValor(m[2]), nome = m[1].trim();
+    if (preco === null || preco > 10000 || !nome || nome.length > 40) return null;
+    out.push({ nome, preco });
+  }
+  return out.length && out.length <= 20 ? out : null;
+}
+function viewAjustes(){
+  return `<div class="card"><h2>Sua barbearia</h2>
+      <label for="aj-nome">Nome que aparece para os clientes</label><input id="aj-nome" value="${esc(SHOP.nome)}" maxlength="60">
+      <label for="aj-serv">Serviços e preços (um por linha: Nome = preço)</label>
+      <textarea id="aj-serv" rows="6">${esc(servicosTexto(SHOP.servicos))}</textarea>
+      <label for="aj-min">Minutos por cliente (para calcular a espera)</label><input id="aj-min" inputmode="numeric" value="${SHOP.min_por_cliente}">
+      <label for="aj-tol">Tolerância depois de chamar (minutos)</label><input id="aj-tol" inputmode="numeric" value="${SHOP.tolerancia_min}">
+      <label for="aj-cidade">Cidade</label><input id="aj-cidade" value="${esc(S.conta.cidade || '')}" maxlength="40">
+      <h2 style="margin-top:18px">Pix da barbearia</h2>
+      <p class="mut">Usado no QR Code do fim do corte quando o profissional não recebe direto na chave dele.</p>
+      <div class="grid2"><div><label for="aj-pixt">Tipo de chave</label><select id="aj-pixt"><option value="">Sem chave</option>
+        ${Object.entries(PIX_TIPOS).map(([k, t]) => `<option value="${k}"${k === S.conta.pix_tipo ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
+        <div><label for="aj-pix">Chave Pix</label><input id="aj-pix" value="${esc(S.conta.pix_chave || '')}" autocapitalize="off"></div></div>
+      <label for="aj-pixn">Nome do titular da conta</label><input id="aj-pixn" value="${esc(S.conta.pix_nome || '')}" maxlength="60">
+      <div class="err" id="aj-msg"></div>
+      <button class="btn" data-a="salvar-aj">Salvar ajustes</button></div>
+    <p class="mut" style="word-break:break-all">Link do cliente: ${esc(linkDe(SHOP.slug))}<br>Link do barbeiro: ${esc(linkDe(SHOP.slug, 'barbeiro'))}<br>Seu link (dono): ${esc(linkDe(SHOP.slug, 'dono'))}</p>`;
+}
+
+/* ---------- Cliques da área restrita ---------- */
+async function onAdminClick(e){
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  const a = b.dataset.a, id = b.dataset.id ? Number(b.dataset.id) : null;
+  try {
+    if (a === 'tab') { S.tab = b.dataset.t; shell(); renderTab(); return; }
+    if (a === 'logout') return logout();
+    if (a === 'chamar') {
+      const f = S.fila.find(x => x.id === id); if (!f) return;
+      const msg = `Fala ${f.nome}! 💈 Chegou a sua vez aqui na ${SHOP.nome}. Por favor, compareça à cadeira em até ${SHOP.tolerancia_min} minutos para não perder a vez.`;
+      abrirExterno(`https://wa.me/55${f.telefone}?text=${encodeURIComponent(msg)}`);
+      await rpc('adm_chamar', {p_token: S.token, p_id: id}); return carregarFila();
+    }
+    if (a === 'remover') { await rpc('adm_remover', {p_token: S.token, p_id: id}); return carregarFila(); }
+    if (a === 'finalizar') { const f = S.fila.find(x => x.id === id); if (f) abrirFinalizar(f); return; }
+    if (a === 'voltar') {
+      const msg = `Fala ${b.dataset.nome}! 💈 Faz um tempinho que você não passa aqui na ${SHOP.nome}. Bora cuidar do visual? Me chama que eu encaixo você.`;
+      abrirExterno(`https://wa.me/55${b.dataset.tel}?text=${encodeURIComponent(msg)}`); return;
+    }
+    if (a === 'edval') {
+      const at = S.atend.find(x => x.id === id); if (!at) return;
+      const v = await perguntar('Novo valor (R$) para ' + at.nome, String(at.valor).replace('.', ',')); if (v === null) return;
+      const n = parseValor(v); if (n === null) return avisar('Valor inválido.');
+      await rpc('dono_editar_valor', {p_token: S.token, p_id: id, p_valor: n});
+      await carregarAtend(); return renderTab();
+    }
+    if (a === 'delat') {
+      if (!await confirmar('Excluir este atendimento do faturamento?', 'Excluir', true)) return;
+      await rpc('dono_excluir_atendimento', {p_token: S.token, p_id: id});
+      await carregarAtend(); return renderTab();
+    }
+    if (a === 'trocar') {
+      const quem = b.dataset.quem, inp = document.getElementById('np-' + quem), msg = document.getElementById('pw-msg');
+      msg.className = 'err'; msg.textContent = '';
+      if (inp.value.length < 6) return msg.textContent = ERROS.senha_curta;
+      const novo = inp.value;
+      await rpc('dono_trocar_pin', {p_token: S.token, p_quem: quem, p_novo: novo});
+      inp.value = '';
+      if (quem === 'dono') {   // a troca encerra as sessões do dono: entra de novo com a senha nova
+        const r = await rpc('adm_login', {p_slug: SHOP.slug, p_pin: novo});
+        if (!r || !r.length) return logout();
+        S.token = r[0].out_token; SS.set(tokKey(), S.token);
+      }
+      msg.className = 'tag ok'; msg.textContent = 'Senha salva.';
+    }
+    if (a === 'salvar-aj') {
+      const msg = document.getElementById('aj-msg'); msg.className = 'err'; msg.textContent = '';
+      const nome = document.getElementById('aj-nome').value.trim();
+      const serv = lerServicos(document.getElementById('aj-serv').value);
+      const min = parseInt(document.getElementById('aj-min').value, 10), tol = parseInt(document.getElementById('aj-tol').value, 10);
+      if (nome.length < 2) return msg.textContent = 'Informe o nome da barbearia.';
+      if (!serv) return msg.textContent = ERROS.servicos_invalidos;
+      if (!(min >= 5 && min <= 240) || !(tol >= 1 && tol <= 60)) return msg.textContent = ERROS.ajuste_invalido;
+      const cidade = document.getElementById('aj-cidade').value.trim(), pixT = document.getElementById('aj-pixt').value || null;
+      const pixC = document.getElementById('aj-pix').value.trim(), pixN = document.getElementById('aj-pixn').value.trim();
+      if (pixT && !pixC) return msg.textContent = 'Digite a chave Pix ou escolha "Sem chave".';
+      if (pixT && pixN.length < 2) return msg.textContent = ERROS.pix_nome;
+      try {
+        await rpc('dono_ajustes', {p_token: S.token, p_nome: nome, p_servicos: serv, p_min: min, p_tol: tol,
+                                   p_cidade: cidade || null, p_pix_tipo: pixT, p_pix_chave: pixC || null, p_pix_nome: pixN || null});
+      } catch (ex) { if (!adminErr(ex)) msg.textContent = msgErro(ex); return; }
+      SHOP = { ...SHOP, nome, servicos: serv, min_por_cliente: min, tolerancia_min: tol };
+      await carregarConta();
+      document.title = SHOP.nome; shell(); renderTab();
+      const m2 = document.getElementById('aj-msg'); m2.className = 'tag ok'; m2.textContent = 'Ajustes salvos.';
+    }
+    if (a === 'pnovo') return abrirProfissional(null);
+    if (a === 'pedit') return abrirProfissional(S.profDet.find(x => x.id === id));
+    if (a === 'dmes' || a === 'rmes') {
+      const o = a === 'dmes' ? S.despMes : S.rel, d = new Date(o.ano, o.mes + Number(b.dataset.d), 1);
+      o.ano = d.getFullYear(); o.mes = d.getMonth(); return renderTab();
+    }
+    if (a === 'rano') { S.rel.ano += Number(b.dataset.d); return renderTab(); }
+    if (a === 'rmodo') { S.rel.modo = b.dataset.m; return renderTab(); }
+    if (a === 'dsalvar') {
+      const err = document.getElementById('d-err'); err.textContent = '';
+      const valor = parseValor(document.getElementById('d-valor').value), data = document.getElementById('d-data').value;
+      if (!data) return err.textContent = ERROS.data_invalida;
+      if (!valor) return err.textContent = 'Digite o valor da despesa.';
+      try {
+        await rpc('dono_salvar_despesa', {p_token: S.token, p_id: null, p_data: data, p_categoria: document.getElementById('d-cat').value,
+                                          p_descricao: document.getElementById('d-desc').value.trim(), p_valor: valor});
+      } catch (ex) { if (!adminErr(ex)) err.textContent = msgErro(ex); return; }
+      const d = parseDia(data); S.despMes = { ano: d.getFullYear(), mes: d.getMonth() };
+      await carregarDesp(); return renderTab();
+    }
+    if (a === 'dexcluir') {
+      if (!await confirmar('Excluir esta despesa?', 'Excluir', true)) return;
+      await rpc('dono_excluir_despesa', {p_token: S.token, p_id: id});
+      await carregarDesp(); return renderTab();
+    }
+    if (a === 'assinar') {
+      const err = document.getElementById('mp-err'), email = document.getElementById('mp-email').value.trim();
+      err.className = 'err'; err.textContent = '';
+      if (b.dataset.p === S.conta.plano && S.conta.mp_status === 'authorized') return err.textContent = 'Esse já é o seu plano atual.';
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err.textContent = ERROS.email_invalido; document.getElementById('mp-email').focus(); return; }
+      b.disabled = true; b.textContent = 'Abrindo o Mercado Pago…';
+      try {
+        const r = await chamarAssinatura({ plano: b.dataset.p, email, volta: linkDe(SHOP.slug, 'dono') });
+        if (r.link) { location.href = r.link; return; }
+        err.textContent = ERROS.mp_recusou;
+      } catch (ex) { if (!adminErr(ex)) err.textContent = msgErro(ex); }
+      b.disabled = false; b.textContent = 'Tentar de novo'; return;
+    }
+    if (a === 'cancelar-assin') {
+      if (!await confirmar('Cancelar a cobrança automática? O sistema continua liberado até a data já paga.', 'Cancelar assinatura', true)) return;
+      await chamarAssinatura({ acao: 'cancelar' });
+      await carregarConta(); shell(); return renderTab();
+    }
+  } catch (ex) { if (!adminErr(ex)) avisar(msgErro(ex)); }
+}
+
+/* ---------- Quadro de link para copiar e enviar ---------- */
+function caixaLink(titulo, url, explica, msgWhats){
+  return `<div class="link-box"><b>${esc(titulo)}</b><div class="mut">${esc(explica)}</div>
+    <div class="link-url">${esc(url)}</div>
+    <div class="link-acoes"><button class="btn sm" style="margin:0" data-copiar="${esc(url)}">Copiar link</button>
+      <a class="green" href="https://wa.me/?text=${encodeURIComponent(msgWhats || url)}" target="_blank" rel="noopener">Enviar no WhatsApp</a></div></div>`;
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-copiar]'); if (!b) return;
+  e.stopPropagation();
+  const url = b.dataset.copiar, antes = b.textContent;
+  try { await navigator.clipboard.writeText(url); b.textContent = 'Copiado!'; }
+  catch { const box = b.closest('.link-box, .item'); const el = box && box.querySelector('.link-url, .mut');
+    if (el) { const r = document.createRange(); r.selectNodeContents(el); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); }
+    b.textContent = 'Selecionado: copie'; }
+  setTimeout(() => { b.textContent = antes; }, 2000);
+}, true);
+
+/* =====================================================================
+   PLANOS: página pública de venda e cadastro da barbearia
+   ===================================================================== */
+const PUB = { plano: 'pro', planos: [] };
+async function planosView(){
+  $app.className = ''; $app.onclick = null;
+  $app.innerHTML = '<div class="logo">💈</div><p class="sub">Carregando os planos…</p>';
+  try { PUB.planos = await rpc('planos_lista') || []; } catch (e) { $app.innerHTML = `<p class="err">${esc(msgErro(e))}</p>`; return; }
+  const RECS = {
+    basic: ['Fila online pelo celular, sem app', 'Chamada pelo WhatsApp com mensagem pronta', 'QR Code Pix no fim do corte'],
+    pro: ['Tudo do Basic', 'Faturamento do dia, semana e mês', 'Rotina dos clientes e "chamar de volta"', 'Barbeiros por comissão, aluguel de cadeira ou salário'],
+    expert: ['Tudo do Pro', 'Despesas da barbearia', 'Relatórios mensais e anuais com lucro', 'Acerto de cada profissional'] };
+  $app.innerHTML = `<div class="logo">💈</div><h1>Fila online para sua barbearia</h1>
+    <p class="sub">Seu cliente entra na fila pelo celular e você chama pelo WhatsApp. Teste grátis por 2 dias, sem cartão.</p>
+    <div class="planos-pub">${PUB.planos.map(p => `<button type="button" class="plano-pub${p.codigo === PUB.plano ? ' on' : ''}" data-plano="${p.codigo}">
+      <div class="row"><b style="font-size:18px">${esc(p.nome)}</b><span class="preco">${brl(p.preco)}<small class="mut">/mês</small></span></div>
+      <ul>${(RECS[p.codigo] || []).map(x => `<li>${x}</li>`).join('')}</ul></button>`).join('')}</div>
+    <div class="card"><h2>Cadastre sua barbearia</h2>
+      <label for="c-nome">Nome da barbearia</label><input id="c-nome" maxlength="60" placeholder="Ex.: Barbearia do João">
+      <label for="c-cidade">Cidade</label><input id="c-cidade" maxlength="40" placeholder="Ex.: Rio de Janeiro">
+      <label for="c-resp">Seu nome completo</label><input id="c-resp" maxlength="100" autocomplete="name">
+      <label for="c-tel">Seu WhatsApp</label><input id="c-tel" inputmode="numeric" placeholder="(21) 99999-9999" autocomplete="tel">
+      <label for="c-email">Seu e-mail</label><input id="c-email" type="email" autocomplete="email">
+      <label for="c-pd">Crie a senha do dono (mínimo 6)</label><input id="c-pd" type="password" autocomplete="new-password">
+      <label for="c-pb">Crie a senha do barbeiro (mínimo 6, diferente)</label><input id="c-pb" type="password" autocomplete="new-password">
+      <details class="priv"><summary>Política de privacidade (resumo)</summary>
+        <p><b>Quais dados:</b> nome da barbearia, cidade, seu nome, WhatsApp e e-mail. As senhas são guardadas embaralhadas e ninguém consegue lê-las.</p>
+        <p><b>Para quê:</b> criar e manter a sua conta, falar com você sobre a assinatura e cobrar a mensalidade. Base legal: execução de contrato (Lei 13.709/2018, art. 7º, V).</p>
+        <p><b>Quem vê:</b> só o administrador da plataforma, com os dados mascarados e cada acesso registrado. Não vendemos nem repassamos seus dados. O pagamento é feito no Mercado Pago, que trata os dados do cartão.</p>
+        <p><b>Clientes e barbeiros da sua barbearia:</b> você decide sobre esses dados; a plataforma só os guarda para você usar o sistema.</p>
+        <p><b>Seus direitos (art. 18):</b> confirmar, acessar, corrigir, levar a outro serviço ou pedir a eliminação dos seus dados, pelo mesmo canal em que contratou.</p>
+      </details>
+      <label class="chk"><input type="checkbox" id="c-aceite"> Li e aceito a política de privacidade.</label>
+      <div class="err" id="c-err"></div>
+      <button class="btn" id="c-ok">Começar teste grátis de 2 dias</button></div>
+    <p class="center" style="margin-top:20px"><a href="#/entrar" style="color:var(--mut)">Já tenho conta · Entrar</a></p>`;
+  $app.querySelectorAll('[data-plano]').forEach(b => b.onclick = () => {
+    PUB.plano = b.dataset.plano; $app.querySelectorAll('[data-plano]').forEach(x => x.classList.toggle('on', x === b)); });
+  const tel = document.getElementById('c-tel'); tel.oninput = () => { tel.value = maskPhone(tel.value); };
+  document.getElementById('c-ok').onclick = async () => {
+    const g = id => document.getElementById(id), err = g('c-err'), btn = g('c-ok'); err.textContent = '';
+    const d = { nome_barbearia: g('c-nome').value.trim(), cidade: g('c-cidade').value.trim(), resp_nome: g('c-resp').value.trim(),
+      resp_telefone: digits(g('c-tel').value), resp_email: g('c-email').value.trim(), plano: PUB.plano,
+      senha_dono: g('c-pd').value, senha_barbeiro: g('c-pb').value, aceite: g('c-aceite').checked };
+    if (d.nome_barbearia.length < 2) return err.textContent = 'Informe o nome da barbearia.';
+    if (d.resp_nome.split(/\s+/).length < 2) return err.textContent = ERROS.nome_completo;
+    if (!/^\d{10,11}$/.test(d.resp_telefone)) return err.textContent = ERROS.telefone_invalido_resp;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.resp_email)) return err.textContent = ERROS.email_invalido;
+    if (d.senha_dono.length < 6 || d.senha_barbeiro.length < 6) return err.textContent = ERROS.senha_curta;
+    if (d.senha_dono === d.senha_barbeiro) return err.textContent = ERROS.senha_repetida;
+    if (!d.aceite) return err.textContent = ERROS.aceite_obrigatorio;
+    btn.disabled = true; btn.textContent = 'Criando sua barbearia…';
+    try {
+      const r = await rpc('cadastro_publico', { p: d });
+      const { slug, token } = r[0];
+      SS.set('bb_token_' + slug, token); SS.set('bb_papel_' + slug, 'dono'); LS.set('bb_ultimo_slug', slug);
+      S.tab = 'fila'; NAV.ir(`#/${slug}/dono`);
+    } catch (e) {
+      err.textContent = e.code === 'telefone_invalido' ? ERROS.telefone_invalido_resp : msgErro(e);
+      btn.disabled = false; btn.textContent = 'Começar teste grátis de 2 dias';
+    }
+  };
+}
+
+/* =====================================================================
+   ENTRAR: login único para barbearias (dono ou barbeiro) e administrador
+   ===================================================================== */
+function slugDoTexto(t){   // aceita o endereço ou o link inteiro colado
+  t = String(t || '').trim().toLowerCase();
+  const m = t.match(/#\/([a-z0-9-]+)/); if (m) t = m[1];
+  return AREAS.includes(t) || t === 'plataforma' || t === 'entrar' ? '' : t.replace(/[^a-z0-9-]/g, '');
+}
+function entrarView(modo){
+  modo = modo || 'barbearia';
+  $app.className = ''; $app.onclick = null;
+  const ultimo = LS.get('bb_ultimo_slug', '');
+  $app.innerHTML = `<div class="logo">💈</div><h1>Entrar</h1>
+    <p class="sub">Acesso das barbearias e do administrador. Clientes não precisam de login: basta abrir o link da barbearia.</p>
+    <div class="seg" style="justify-content:center;margin-bottom:14px">
+      <button data-m="barbearia" class="${modo === 'barbearia' ? 'on' : ''}">Barbearia</button>
+      <button data-m="admin" class="${modo === 'admin' ? 'on' : ''}">Administrador</button></div>
+    <div class="card">
+      ${modo === 'barbearia' ? `<label for="en-slug">Endereço da barbearia</label>
+        <input id="en-slug" value="${esc(ultimo)}" placeholder="ex.: barbearia-do-joao" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username">
+        <p class="mut" style="margin-top:6px;font-size:13px">É o final do link: ${esc(linkBase())}#/<b>endereço</b>. Pode colar o link inteiro.</p>` : ''}
+      <label for="en-pw">${modo === 'barbearia' ? 'Senha (do dono ou do barbeiro)' : 'Senha da plataforma'}</label>
+      <input id="en-pw" type="password" autocomplete="current-password">
+      <div class="err" id="en-err"></div>
+      <button class="btn" id="en-ok">Entrar</button></div>
+    ${modo === 'barbearia' ? '<p class="mut center" style="font-size:13px">Esqueceu a senha? O dono troca a do barbeiro na aba Senhas; a do dono, o administrador redefine.</p><p class="center" style="margin-top:14px"><a href="#/planos" style="color:var(--gold2)">Ainda não tem conta? Conheça os planos</a></p>' : ''}`;
+  $app.querySelectorAll('[data-m]').forEach(b => b.onclick = () => entrarView(b.dataset.m));
+  const go = async () => {
+    const err = document.getElementById('en-err'), pw = document.getElementById('en-pw').value, btn = document.getElementById('en-ok');
+    err.textContent = '';
+    if (!pw) return err.textContent = 'Digite a senha.';
+    btn.disabled = true;
+    try {
+      if (modo === 'admin') {
+        const t = await rpc('plat_login', {p_pin: pw});
+        if (!t) return err.textContent = 'Senha incorreta.';
+        SS.set('bb_plat', t); NAV.ir('#/plataforma'); return;
+      }
+      const slug = slugDoTexto(document.getElementById('en-slug').value);
+      if (!slug) return err.textContent = 'Digite o endereço da barbearia.';
+      const shop = await carregarShop(slug);
+      if (!shop) return err.textContent = 'Não encontramos essa barbearia. Confira o endereço.';
+      const r = await rpc('adm_login', {p_slug: slug, p_pin: pw});
+      if (!r || !r.length) return err.textContent = 'Senha incorreta.';
+      SHOP = shop; LS.set('bb_ultimo_slug', slug);
+      SS.set('bb_token_' + slug, r[0].out_token); SS.set('bb_papel_' + slug, r[0].out_papel);
+      NAV.ir(`#/${slug}/${r[0].out_papel}`);
+    } catch (e) { err.textContent = msgErro(e); }
+    finally { btn.disabled = false; }
+  };
+  document.getElementById('en-ok').onclick = go;
+  document.getElementById('en-pw').addEventListener('keydown', e => e.key === 'Enter' && go());
+  (document.getElementById('en-slug') && !ultimo ? document.getElementById('en-slug') : document.getElementById('en-pw')).focus();
+}
+
+/* =====================================================================
+   PLATAFORMA (cadastro das barbearias)
+   ===================================================================== */
+const P = { token: null, lista: [], criada: null };
+const slugify = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/g, '');
+
+function platErr(e){
+  if (e && e.code === 'nao_autorizado') { SS.del('bb_plat'); P.token = null; platLogin('Sua sessão expirou. Entre de novo.'); return true; }
+  console.error(e); return false;
+}
+
+function platView(){
+  P.token = SS.get('bb_plat');
+  if (!P.token) return platLogin();
+  platPainel();
+}
+
+function platLogin(aviso = ''){
+  $app.className = ''; $app.onclick = null;
+  $app.innerHTML = `<div class="logo">🗂️</div><h1>Plataforma</h1>
+    <p class="sub">Cadastro e controle das barbearias</p>
+    <div class="card"><label for="ppw">Senha da plataforma</label><input id="ppw" type="password" autocomplete="current-password">
+    <div class="err" id="err">${esc(aviso)}</div><button class="btn" id="ok">Entrar</button></div>`;
+  const go = async () => {
+    const pw = document.getElementById('ppw').value, err = document.getElementById('err');
+    err.textContent = ''; if (!pw) return;
+    try {
+      const t = await rpc('plat_login', {p_pin: pw});
+      if (!t) return err.textContent = 'Senha incorreta.';
+      SS.set('bb_plat', t); P.token = t; platPainel();
+    } catch (e) { err.textContent = msgErro(e); }
+  };
+  document.getElementById('ok').onclick = go;
+  document.getElementById('ppw').addEventListener('keydown', e => e.key === 'Enter' && go());
+}
+
+async function platPainel(){
+  $app.className = 'wide';
+  $app.innerHTML = '<p class="sub">Carregando…</p>';
+  try { [P.lista, P.planos] = await Promise.all([rpc('plat_listar', {p_token: P.token}), rpc('planos_lista')]); P.lista = P.lista || []; P.planos = P.planos || []; }
+  catch (e) { if (!platErr(e)) $app.innerHTML = `<p class="err">${esc(msgErro(e))}</p>`; return; }
+  const ativas = P.lista.filter(b => b.ativo).length;
+  const preco = c => (P.planos.find(p => p.codigo === c) || {}).preco || 0;
+  const pagantes = P.lista.filter(b => b.ativo && !b.isento && b.situacao === 'ativo');
+  const mensal = pagantes.reduce((s, b) => s + Number(preco(b.plano)), 0);
+  const opPlano = sel => P.planos.map(p => `<option value="${p.codigo}"${p.codigo === sel ? ' selected' : ''}>${esc(p.nome)} · ${brl(p.preco)}</option>`).join('');
+  const sitTag = b => ({ isento: ['ok', 'Isenta'], ativo: ['ok', 'Em dia'], teste: ['warn', 'Teste'], aviso: ['warn', 'Vencida (aviso)'], bloqueado: ['bad', 'Pausada'] }[b.situacao] || ['', b.situacao]);
+  $app.innerHTML = `
+    <div class="row"><h2 style="margin:0">🗂️ Plataforma</h2><button class="btn ghost sm" data-p="sair">Sair</button></div>
+    <p class="mut" style="margin:6px 0 14px">${P.lista.length} barbearia(s) · ${ativas} ativa(s)</p>
+    ${caixaLink('Link de venda dos planos', linkBase() + '#/planos', 'Mande para barbeiros interessados: eles escolhem o plano, cadastram a barbearia e ganham 2 dias grátis.',
+      `Conheça a fila online para barbearias: o cliente entra na fila pelo celular e você chama pelo WhatsApp. Teste grátis por 2 dias: ${linkBase()}#/planos`)}
+    <div class="kpis">${kpi('Pagantes em dia', pagantes.length, `${P.lista.filter(b => b.situacao === 'teste').length} em teste · ${P.lista.filter(b => b.situacao === 'aviso' || b.situacao === 'bloqueado').length} vencida(s)`)}
+      ${kpi('Receita mensal', brl(mensal), 'antes da taxa do Mercado Pago')}</div>
+    ${P.criada ? `<div class="alert" style="text-align:left;word-break:break-all">Barbearia criada! Envie estes links ao dono:<br><br>
+        Clientes: ${esc(linkDe(P.criada))}<br>Barbeiro: ${esc(linkDe(P.criada, 'barbeiro'))}<br>Dono: ${esc(linkDe(P.criada, 'dono'))}<br><br>
+        Peça para ele trocar as senhas na aba Senhas e ajustar serviços e preços na aba Ajustes.</div><br>` : ''}
+    <div class="card"><h2>Barbearias</h2>
+      ${P.lista.length ? P.lista.map(b => `<div class="item"><div class="grow">
+          <div class="name">${esc(b.nome)} <span class="tag ${b.ativo ? sitTag(b)[0] : 'bad'}">${b.ativo ? sitTag(b)[1] : 'Desativada'}</span></div>
+          <div class="mut">Plano ${NOME_PLANO[b.plano]}${b.isento ? ' · isenta' : ''}${b.vence_em && !b.isento ? ` · ${b.situacao === 'teste' ? 'teste até' : 'pago até'} ${new Date(b.vence_em).toLocaleDateString('pt-BR')}` : ''}${b.mp_status ? ` · Mercado Pago: ${esc(b.mp_status)}` : ''}</div>
+          <div class="mut" style="word-break:break-all">${esc(linkDe(b.slug))} <button class="btn ghost sm" style="padding:4px 10px;font-size:12px" data-copiar="${esc(linkDe(b.slug))}">Copiar</button></div>
+          <div class="mut">${b.clientes} cliente(s) · ${b.atendimentos_30d} atendimento(s) nos últimos 30 dias${b.ultimo_atendimento ? ` · último em ${new Date(b.ultimo_atendimento).toLocaleDateString('pt-BR')}` : ''}</div>
+          <div class="actions">
+            <select id="pl-${b.id}" style="width:auto;padding:8px 10px;font-size:14px">${opPlano(b.plano)}</select>
+            <button class="btn ghost sm" data-p="plano" data-id="${b.id}">Salvar plano</button>
+            <button class="btn ghost sm" data-p="isento" data-id="${b.id}" data-v="${b.isento ? '0' : '1'}">${b.isento ? 'Tirar isenção' : 'Isentar'}</button>
+            <button class="btn ghost sm" data-p="liberar" data-id="${b.id}">Recebi fora do app</button>
+          </div>
+          <div class="actions">
+            <button class="btn ghost sm" data-p="senha" data-id="${b.id}" data-quem="dono">Nova senha do dono</button>
+            <button class="btn ghost sm" data-p="senha" data-id="${b.id}" data-quem="barbeiro">Nova senha do barbeiro</button>
+            <button class="${b.ativo ? 'red' : 'green'} sm" data-p="ativo" data-id="${b.id}" data-v="${b.ativo ? '0' : '1'}">${b.ativo ? 'Desativar' : 'Reativar'}</button>
+          </div></div></div>`).join('') : '<p class="mut">Nenhuma barbearia ainda.</p>'}
+      <div class="err" id="lista-msg"></div></div>
+    <div class="card"><h2>Nova barbearia</h2>
+      <label for="n-nome">Nome da barbearia</label><input id="n-nome" maxlength="60" placeholder="Ex.: Barbearia do João">
+      <label for="n-slug">Endereço no link (sem acento e sem espaço)</label><input id="n-slug" maxlength="40" placeholder="barbearia-do-joao" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <p class="mut" id="n-prev" style="margin-top:6px;word-break:break-all"></p>
+      <label for="n-pd">Senha inicial do dono (mínimo 6)</label><input id="n-pd" autocomplete="off">
+      <label for="n-pb">Senha inicial do barbeiro (mínimo 6, diferente da do dono)</label><input id="n-pb" autocomplete="off">
+      <label for="n-plano">Plano (começa com 2 dias grátis)</label><select id="n-plano">${opPlano('pro')}</select>
+      <div class="err" id="n-err"></div>
+      <button class="btn" data-p="criar">Criar barbearia</button></div>
+    <div class="card"><h2>Preços dos planos</h2>
+      ${P.planos.map(p => `<div class="row" style="margin-top:8px"><span style="min-width:70px">${esc(p.nome)}</span>
+        <input id="pp-${p.codigo}" inputmode="decimal" value="${String(p.preco).replace('.', ',')}" style="flex:1">
+        <button class="btn ghost sm" data-p="preco" data-c="${p.codigo}">Salvar</button></div>`).join('')}
+      <p class="mut" style="margin-top:8px">O preço novo vale para as próximas assinaturas. Quem já assinou continua com o valor contratado no Mercado Pago.</p>
+      <div class="err" id="preco-msg"></div></div>
+    <div class="card"><h2>Senha da plataforma</h2>
+      <label for="np-plat">Nova senha (mínimo 8 caracteres)</label><input id="np-plat" type="password" autocomplete="new-password">
+      <div class="err" id="plat-msg"></div>
+      <button class="btn sm" style="margin-top:12px" data-p="trocar">Salvar</button></div>`;
+  const nome = document.getElementById('n-nome'), slug = document.getElementById('n-slug'), prev = document.getElementById('n-prev');
+  let slugManual = false;
+  const mostrar = () => prev.textContent = slug.value ? 'Link: ' + linkDe(slug.value) : '';
+  nome.addEventListener('input', () => { if (!slugManual) { slug.value = slugify(nome.value); mostrar(); } });
+  slug.addEventListener('input', () => { slugManual = true; slug.value = slugify(slug.value) + (slug.value.endsWith('-') ? '-' : ''); mostrar(); });
+  $app.onclick = onPlatClick;
+}
+
+async function onPlatClick(e){
+  const b = e.target.closest('[data-p]'); if (!b) return;
+  const a = b.dataset.p;
+  try {
+    if (a === 'sair') { SS.del('bb_plat'); P.token = null; P.criada = null; return platLogin(); }
+    if (a === 'criar') {
+      const err = document.getElementById('n-err'); err.textContent = '';
+      const nome = document.getElementById('n-nome').value.trim(), slug = slugify(document.getElementById('n-slug').value);
+      const pd = document.getElementById('n-pd').value, pb = document.getElementById('n-pb').value;
+      if (nome.length < 2) return err.textContent = 'Informe o nome da barbearia.';
+      if (!slug) return err.textContent = ERROS.slug_invalido;
+      if (pd.length < 6 || pb.length < 6) return err.textContent = ERROS.senha_curta;
+      if (pd === pb) return err.textContent = ERROS.senha_repetida;
+      try { await rpc('plat_criar', {p_token: P.token, p_slug: slug, p_nome: nome, p_pin_dono: pd, p_pin_barbeiro: pb, p_plano: document.getElementById('n-plano').value}); }
+      catch (ex) { if (!platErr(ex)) err.textContent = msgErro(ex); return; }
+      P.criada = slug; window.scrollTo(0, 0); return platPainel();
+    }
+    if (a === 'plano' || a === 'isento') {
+      const id = Number(b.dataset.id), item = P.lista.find(x => x.id === id);
+      await rpc('plat_plano', {p_token: P.token, p_id: id, p_plano: a === 'plano' ? document.getElementById('pl-' + id).value : item.plano,
+                               p_isento: a === 'isento' ? b.dataset.v === '1' : item.isento});
+      return platPainel();
+    }
+    if (a === 'liberar') {
+      const id = Number(b.dataset.id), item = P.lista.find(x => x.id === id);
+      const dias = await perguntar(`Pagamento recebido fora do app (ex.: Pix direto) de "${item ? item.nome : ''}". Liberar quantos dias?`, '30', 'number');
+      if (dias === null) return;
+      const n = parseInt(dias, 10); if (!(n >= 1 && n <= 400)) return avisar(ERROS.dias_invalidos);
+      await rpc('plat_liberar', {p_token: P.token, p_id: id, p_dias: n, p_valor: null});
+      return platPainel();
+    }
+    if (a === 'preco') {
+      const msg = document.getElementById('preco-msg'), v = parseValor(document.getElementById('pp-' + b.dataset.c).value);
+      msg.className = 'err'; msg.textContent = '';
+      if (!v || v < 1) return msg.textContent = 'Preço inválido.';
+      await rpc('plat_preco', {p_token: P.token, p_codigo: b.dataset.c, p_preco: v});
+      return platPainel();
+    }
+    if (a === 'ativo') {
+      const id = Number(b.dataset.id), ativar = b.dataset.v === '1', item = P.lista.find(x => x.id === id);
+      if (!ativar && !await confirmar(`Desativar "${item ? item.nome : ''}"? Clientes e barbeiro deixam de acessar até você reativar. Os dados ficam guardados.`, 'Desativar', true)) return;
+      await rpc('plat_ativar', {p_token: P.token, p_id: id, p_ativo: ativar});
+      return platPainel();
+    }
+    if (a === 'senha') {
+      const id = Number(b.dataset.id), quem = b.dataset.quem, item = P.lista.find(x => x.id === id);
+      const novo = await perguntar(`Nova senha do ${quem} de "${item ? item.nome : ''}" (mínimo 6 caracteres):`, '', 'text');
+      if (novo === null) return;
+      const msg = document.getElementById('lista-msg'); msg.className = 'err'; msg.textContent = '';
+      if (novo.length < 6) return msg.textContent = ERROS.senha_curta;
+      await rpc('plat_redefinir', {p_token: P.token, p_id: id, p_quem: quem, p_novo: novo});
+      msg.className = 'tag ok'; msg.textContent = `Senha do ${quem} trocada. Avise a pessoa.`;
+      return;
+    }
+    if (a === 'trocar') {
+      const inp = document.getElementById('np-plat'), msg = document.getElementById('plat-msg');
+      msg.className = 'err'; msg.textContent = '';
+      if (inp.value.length < 8) return msg.textContent = ERROS.senha_curta_plat;
+      const novo = inp.value;
+      await rpc('plat_trocar_senha', {p_token: P.token, p_novo: novo});
+      const t = await rpc('plat_login', {p_pin: novo});
+      if (!t) { SS.del('bb_plat'); return platLogin(); }
+      P.token = t; SS.set('bb_plat', t); inp.value = '';
+      msg.className = 'tag ok'; msg.textContent = 'Senha da plataforma salva.';
+    }
+  } catch (ex) {
+    if (platErr(ex)) return;
+    const msg = document.getElementById('lista-msg');
+    if (msg) { msg.className = 'err'; msg.textContent = msgErro(ex); } else avisar(msgErro(ex));
+  }
+}
+
+route();
+</script>
+<script>
+ERROS.demo_pago = 'Demonstração: pagamento simulado como aprovado. No site real, aqui abre o Mercado Pago para o cartão.';
+const _assinarDemo = DEMO.assinar;
+function demoAviso(t){ avisar(t); }
+function demoMarcar(){ document.querySelectorAll('#demo-bar [data-ir]').forEach(b => b.classList.toggle('on', b.dataset.ir === DEMO_HASH)); }
+document.getElementById('demo-bar').addEventListener('click', e => { const b = e.target.closest('[data-ir]'); if (b) NAV.ir(b.dataset.ir); });
+document.addEventListener('click', e => { const a = e.target.closest('a[href^="#/"]'); if (a) { e.preventDefault(); NAV.ir(a.getAttribute('href')); } });
+// depois de "assinar", atualiza o painel com o plano ativo
+const _chamar = chamarAssinatura;
+chamarAssinatura = async corpo => { try { return await _chamar(corpo); } catch (e) { if (e.code === 'demo_pago') setTimeout(async () => { await carregarConta(); shell(); renderTab(); }, 1800); throw e; } };
+demoMarcar();
+</script>

@@ -1445,6 +1445,26 @@ function cpfValido(c){
 }
 const FORMAS = { dinheiro: 'Dinheiro', pix: 'Pix', cartao: 'Cartão' };
 
+/* ---------- Janelas de confirmação e de pergunta (no lugar das do navegador) ---------- */
+function janela({ titulo, texto, campo, padrao = '', ok = 'Confirmar', cancelar = 'Cancelar', perigo = false }){
+  return new Promise(res => {
+    const ov = document.createElement('div'); ov.className = 'ov'; ov.style.alignItems = 'center'; ov.style.zIndex = 30;
+    ov.innerHTML = `<div class="sheet" style="border-radius:22px;margin:16px" role="dialog" aria-modal="true">
+      ${titulo ? `<h2>${esc(titulo)}</h2>` : ''}<p class="mut" style="margin:6px 0 4px">${esc(texto)}</p>
+      ${campo ? `<input id="jn-in" type="${campo}" value="${esc(padrao)}" style="margin-top:8px">` : ''}
+      <div class="actions" style="margin-top:14px;justify-content:flex-end">
+        ${cancelar ? `<button class="btn ghost sm" data-j="0">${esc(cancelar)}</button>` : ''}
+        <button class="${perigo ? 'red' : 'btn'} sm" style="width:auto;margin:0" data-j="1">${esc(ok)}</button></div></div>`;
+    const fim = v => { ov.remove(); res(v); };
+    ov.onclick = e => { const b = e.target.closest('[data-j]'); if (b) fim(b.dataset.j === '1' ? (campo ? ov.querySelector('#jn-in').value : true) : (campo ? null : false)); };
+    document.body.append(ov);
+    const inp = ov.querySelector('#jn-in'); if (inp) { inp.focus(); inp.select(); inp.onkeydown = e => { if (e.key === 'Enter') fim(inp.value); }; }
+  });
+}
+const confirmar = (texto, ok = 'Confirmar', perigo = false) => janela({ texto, ok, perigo });
+const perguntar = (texto, padrao = '', campo = 'text') => janela({ texto, campo, padrao, ok: 'Salvar' });
+const avisar = texto => janela({ texto, ok: 'Ok', cancelar: null });
+
 /* ---------- Comunicação com o Supabase (funções do banco) ---------- */
 async function rpc(fn, args = {}) {
   const r = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
@@ -1518,13 +1538,15 @@ let SHOP = null;          // { slug, nome, servicos, min_por_cliente, tolerancia
 let rotaAtual = 0;
 const AREAS = ['barbeiro', 'admin', 'dono'];
 function lerRota(){
-  const p = decodeURIComponent(location.hash.replace(/^#\/?/, '')).toLowerCase().split('/').filter(Boolean);
+  const p = decodeURIComponent(NAV.hash().replace(/^#\/?/, '')).toLowerCase().split('/').filter(Boolean);
   if (p[0] === 'plataforma') return { plat: true };
   if (p[0] === 'entrar') return { entrar: true };
   if (p[0] === 'planos') return { planos: true };
   if (!p.length || AREAS.includes(p[0])) return { slug: CONFIG.PADRAO, area: p[0] || '' };
   return { slug: p[0], area: p[1] || '' };
 }
+const NAV = { hash: () => location.hash, ir: h => { location.hash = h; } };
+const abrirExterno = url => window.open(url, '_blank');
 const linkBase = () => location.origin + location.pathname;
 const linkDe = (slug, area = '') => linkBase() + '#/' + slug + (area ? '/' + area : '');
 const tkKey = () => 'bb_ticket_' + SHOP.slug;
@@ -1656,7 +1678,7 @@ function statusView(ticket){
       </div>
       <button class="btn ghost" id="sair">Sair da fila</button>`;
     document.getElementById('sair').onclick = async () => {
-      if (confirm('Deseja sair da fila?')) { try { await rpc('sair_fila', {p_slug: SHOP.slug, p_id: ticket.id, p_tel: ticket.tel}); } catch {} render(); }
+      if (await confirmar('Deseja sair da fila?', 'Sair da fila', true)) { try { await rpc('sair_fila', {p_slug: SHOP.slug, p_id: ticket.id, p_tel: ticket.tel}); } catch {} render(); }
     };
   };
   render();
@@ -2398,24 +2420,24 @@ async function onAdminClick(e){
     if (a === 'chamar') {
       const f = S.fila.find(x => x.id === id); if (!f) return;
       const msg = `Fala ${f.nome}! 💈 Chegou a sua vez aqui na ${SHOP.nome}. Por favor, compareça à cadeira em até ${SHOP.tolerancia_min} minutos para não perder a vez.`;
-      window.open(`https://wa.me/55${f.telefone}?text=${encodeURIComponent(msg)}`, '_blank');
+      abrirExterno(`https://wa.me/55${f.telefone}?text=${encodeURIComponent(msg)}`);
       await rpc('adm_chamar', {p_token: S.token, p_id: id}); return carregarFila();
     }
     if (a === 'remover') { await rpc('adm_remover', {p_token: S.token, p_id: id}); return carregarFila(); }
     if (a === 'finalizar') { const f = S.fila.find(x => x.id === id); if (f) abrirFinalizar(f); return; }
     if (a === 'voltar') {
       const msg = `Fala ${b.dataset.nome}! 💈 Faz um tempinho que você não passa aqui na ${SHOP.nome}. Bora cuidar do visual? Me chama que eu encaixo você.`;
-      window.open(`https://wa.me/55${b.dataset.tel}?text=${encodeURIComponent(msg)}`, '_blank'); return;
+      abrirExterno(`https://wa.me/55${b.dataset.tel}?text=${encodeURIComponent(msg)}`); return;
     }
     if (a === 'edval') {
       const at = S.atend.find(x => x.id === id); if (!at) return;
-      const v = prompt('Novo valor (R$) para ' + at.nome, String(at.valor).replace('.', ',')); if (v === null) return;
-      const n = parseValor(v); if (n === null) return alert('Valor inválido.');
+      const v = await perguntar('Novo valor (R$) para ' + at.nome, String(at.valor).replace('.', ',')); if (v === null) return;
+      const n = parseValor(v); if (n === null) return avisar('Valor inválido.');
       await rpc('dono_editar_valor', {p_token: S.token, p_id: id, p_valor: n});
       await carregarAtend(); return renderTab();
     }
     if (a === 'delat') {
-      if (!confirm('Excluir este atendimento do faturamento?')) return;
+      if (!await confirmar('Excluir este atendimento do faturamento?', 'Excluir', true)) return;
       await rpc('dono_excluir_atendimento', {p_token: S.token, p_id: id});
       await carregarAtend(); return renderTab();
     }
@@ -2475,7 +2497,7 @@ async function onAdminClick(e){
       await carregarDesp(); return renderTab();
     }
     if (a === 'dexcluir') {
-      if (!confirm('Excluir esta despesa?')) return;
+      if (!await confirmar('Excluir esta despesa?', 'Excluir', true)) return;
       await rpc('dono_excluir_despesa', {p_token: S.token, p_id: id});
       await carregarDesp(); return renderTab();
     }
@@ -2493,11 +2515,11 @@ async function onAdminClick(e){
       b.disabled = false; b.textContent = 'Tentar de novo'; return;
     }
     if (a === 'cancelar-assin') {
-      if (!confirm('Cancelar a cobrança automática? O sistema continua liberado até a data já paga.')) return;
+      if (!await confirmar('Cancelar a cobrança automática? O sistema continua liberado até a data já paga.', 'Cancelar assinatura', true)) return;
       await chamarAssinatura({ acao: 'cancelar' });
       await carregarConta(); shell(); return renderTab();
     }
-  } catch (ex) { if (!adminErr(ex)) alert(msgErro(ex)); }
+  } catch (ex) { if (!adminErr(ex)) avisar(msgErro(ex)); }
 }
 
 /* ---------- Quadro de link para copiar e enviar ---------- */
@@ -2574,7 +2596,7 @@ async function planosView(){
       const r = await rpc('cadastro_publico', { p: d });
       const { slug, token } = r[0];
       SS.set('bb_token_' + slug, token); SS.set('bb_papel_' + slug, 'dono'); LS.set('bb_ultimo_slug', slug);
-      S.tab = 'fila'; location.hash = `#/${slug}/dono`;
+      S.tab = 'fila'; NAV.ir(`#/${slug}/dono`);
     } catch (e) {
       err.textContent = e.code === 'telefone_invalido' ? ERROS.telefone_invalido_resp : msgErro(e);
       btn.disabled = false; btn.textContent = 'Começar teste grátis de 2 dias';
@@ -2618,7 +2640,7 @@ function entrarView(modo){
       if (modo === 'admin') {
         const t = await rpc('plat_login', {p_pin: pw});
         if (!t) return err.textContent = 'Senha incorreta.';
-        SS.set('bb_plat', t); location.hash = '#/plataforma'; return;
+        SS.set('bb_plat', t); NAV.ir('#/plataforma'); return;
       }
       const slug = slugDoTexto(document.getElementById('en-slug').value);
       if (!slug) return err.textContent = 'Digite o endereço da barbearia.';
@@ -2628,7 +2650,7 @@ function entrarView(modo){
       if (!r || !r.length) return err.textContent = 'Senha incorreta.';
       SHOP = shop; LS.set('bb_ultimo_slug', slug);
       SS.set('bb_token_' + slug, r[0].out_token); SS.set('bb_papel_' + slug, r[0].out_papel);
-      location.hash = `#/${slug}/${r[0].out_papel}`;
+      NAV.ir(`#/${slug}/${r[0].out_papel}`);
     } catch (e) { err.textContent = msgErro(e); }
     finally { btn.disabled = false; }
   };
@@ -2765,9 +2787,9 @@ async function onPlatClick(e){
     }
     if (a === 'liberar') {
       const id = Number(b.dataset.id), item = P.lista.find(x => x.id === id);
-      const dias = prompt(`Pagamento recebido fora do app (ex.: Pix direto) de "${item ? item.nome : ''}". Liberar quantos dias?`, '30');
+      const dias = await perguntar(`Pagamento recebido fora do app (ex.: Pix direto) de "${item ? item.nome : ''}". Liberar quantos dias?`, '30', 'number');
       if (dias === null) return;
-      const n = parseInt(dias, 10); if (!(n >= 1 && n <= 400)) return alert(ERROS.dias_invalidos);
+      const n = parseInt(dias, 10); if (!(n >= 1 && n <= 400)) return avisar(ERROS.dias_invalidos);
       await rpc('plat_liberar', {p_token: P.token, p_id: id, p_dias: n, p_valor: null});
       return platPainel();
     }
@@ -2780,13 +2802,13 @@ async function onPlatClick(e){
     }
     if (a === 'ativo') {
       const id = Number(b.dataset.id), ativar = b.dataset.v === '1', item = P.lista.find(x => x.id === id);
-      if (!ativar && !confirm(`Desativar "${item ? item.nome : ''}"? Clientes e barbeiro deixam de acessar até você reativar. Os dados ficam guardados.`)) return;
+      if (!ativar && !await confirmar(`Desativar "${item ? item.nome : ''}"? Clientes e barbeiro deixam de acessar até você reativar. Os dados ficam guardados.`, 'Desativar', true)) return;
       await rpc('plat_ativar', {p_token: P.token, p_id: id, p_ativo: ativar});
       return platPainel();
     }
     if (a === 'senha') {
       const id = Number(b.dataset.id), quem = b.dataset.quem, item = P.lista.find(x => x.id === id);
-      const novo = prompt(`Nova senha do ${quem} de "${item ? item.nome : ''}" (mínimo 6 caracteres):`);
+      const novo = await perguntar(`Nova senha do ${quem} de "${item ? item.nome : ''}" (mínimo 6 caracteres):`, '', 'text');
       if (novo === null) return;
       const msg = document.getElementById('lista-msg'); msg.className = 'err'; msg.textContent = '';
       if (novo.length < 6) return msg.textContent = ERROS.senha_curta;
@@ -2808,7 +2830,7 @@ async function onPlatClick(e){
   } catch (ex) {
     if (platErr(ex)) return;
     const msg = document.getElementById('lista-msg');
-    if (msg) { msg.className = 'err'; msg.textContent = msgErro(ex); } else alert(msgErro(ex));
+    if (msg) { msg.className = 'err'; msg.textContent = msgErro(ex); } else avisar(msgErro(ex));
   }
 }
 
