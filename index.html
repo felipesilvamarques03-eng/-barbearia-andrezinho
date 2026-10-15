@@ -1504,6 +1504,7 @@ const AREAS = ['barbeiro', 'admin', 'dono'];
 function lerRota(){
   const p = decodeURIComponent(location.hash.replace(/^#\/?/, '')).toLowerCase().split('/').filter(Boolean);
   if (p[0] === 'plataforma') return { plat: true };
+  if (p[0] === 'entrar') return { entrar: true };
   if (!p.length || AREAS.includes(p[0])) return { slug: CONFIG.PADRAO, area: p[0] || '' };
   return { slug: p[0], area: p[1] || '' };
 }
@@ -1522,6 +1523,7 @@ async function route(){
   $app.onclick = null; $modal.onclick = null; $modal.innerHTML = ''; $app.className = '';
   const minha = ++rotaAtual, r = lerRota();
   if (r.plat) { document.title = 'Plataforma · Fila da Barbearia'; return platView(); }
+  if (r.entrar) { document.title = 'Entrar · Fila da Barbearia'; return entrarView(); }
   if (!SHOP || SHOP.slug !== r.slug) {
     SHOP = null;
     $app.innerHTML = '<div class="logo">💈</div><p class="sub">Carregando…</p>';
@@ -1559,6 +1561,7 @@ function homeView(){
       ? `<p class="sub">Sem fila no balcão. Entre na lista e acompanhe pelo celular.</p>
          <button class="btn" id="go">Entrar na Fila / Agendar</button>`
       : `<p class="sub">A fila online está temporariamente indisponível. Fale direto com a barbearia.</p>`}`;
+  $app.insertAdjacentHTML('beforeend', `<p class="center" style="margin-top:40px"><a href="#/entrar" class="mut" style="color:var(--mut)">Sou da barbearia · Entrar</a></p>`);
   const go = document.getElementById('go'); if (go) go.onclick = formView;
 }
 
@@ -2476,6 +2479,61 @@ async function onAdminClick(e){
       await carregarConta(); shell(); return renderTab();
     }
   } catch (ex) { if (!adminErr(ex)) alert(msgErro(ex)); }
+}
+
+/* =====================================================================
+   ENTRAR: login único para barbearias (dono ou barbeiro) e administrador
+   ===================================================================== */
+function slugDoTexto(t){   // aceita o endereço ou o link inteiro colado
+  t = String(t || '').trim().toLowerCase();
+  const m = t.match(/#\/([a-z0-9-]+)/); if (m) t = m[1];
+  return AREAS.includes(t) || t === 'plataforma' || t === 'entrar' ? '' : t.replace(/[^a-z0-9-]/g, '');
+}
+function entrarView(modo){
+  modo = modo || 'barbearia';
+  $app.className = ''; $app.onclick = null;
+  const ultimo = LS.get('bb_ultimo_slug', '');
+  $app.innerHTML = `<div class="logo">💈</div><h1>Entrar</h1>
+    <p class="sub">Acesso das barbearias e do administrador. Clientes não precisam de login: basta abrir o link da barbearia.</p>
+    <div class="seg" style="justify-content:center;margin-bottom:14px">
+      <button data-m="barbearia" class="${modo === 'barbearia' ? 'on' : ''}">Barbearia</button>
+      <button data-m="admin" class="${modo === 'admin' ? 'on' : ''}">Administrador</button></div>
+    <div class="card">
+      ${modo === 'barbearia' ? `<label for="en-slug">Endereço da barbearia</label>
+        <input id="en-slug" value="${esc(ultimo)}" placeholder="ex.: barbearia-do-joao" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username">
+        <p class="mut" style="margin-top:6px;font-size:13px">É o final do link: ${esc(linkBase())}#/<b>endereço</b>. Pode colar o link inteiro.</p>` : ''}
+      <label for="en-pw">${modo === 'barbearia' ? 'Senha (do dono ou do barbeiro)' : 'Senha da plataforma'}</label>
+      <input id="en-pw" type="password" autocomplete="current-password">
+      <div class="err" id="en-err"></div>
+      <button class="btn" id="en-ok">Entrar</button></div>
+    ${modo === 'barbearia' ? '<p class="mut center" style="font-size:13px">Esqueceu a senha? O dono troca a do barbeiro na aba Senhas; a do dono, o administrador redefine.</p>' : ''}`;
+  $app.querySelectorAll('[data-m]').forEach(b => b.onclick = () => entrarView(b.dataset.m));
+  const go = async () => {
+    const err = document.getElementById('en-err'), pw = document.getElementById('en-pw').value, btn = document.getElementById('en-ok');
+    err.textContent = '';
+    if (!pw) return err.textContent = 'Digite a senha.';
+    btn.disabled = true;
+    try {
+      if (modo === 'admin') {
+        const t = await rpc('plat_login', {p_pin: pw});
+        if (!t) return err.textContent = 'Senha incorreta.';
+        SS.set('bb_plat', t); location.hash = '#/plataforma'; return;
+      }
+      const slug = slugDoTexto(document.getElementById('en-slug').value);
+      if (!slug) return err.textContent = 'Digite o endereço da barbearia.';
+      const shop = await carregarShop(slug);
+      if (!shop) return err.textContent = 'Não encontramos essa barbearia. Confira o endereço.';
+      const r = await rpc('adm_login', {p_slug: slug, p_pin: pw});
+      if (!r || !r.length) return err.textContent = 'Senha incorreta.';
+      SHOP = shop; LS.set('bb_ultimo_slug', slug);
+      SS.set('bb_token_' + slug, r[0].out_token); SS.set('bb_papel_' + slug, r[0].out_papel);
+      location.hash = `#/${slug}/${r[0].out_papel}`;
+    } catch (e) { err.textContent = msgErro(e); }
+    finally { btn.disabled = false; }
+  };
+  document.getElementById('en-ok').onclick = go;
+  document.getElementById('en-pw').addEventListener('keydown', e => e.key === 'Enter' && go());
+  (document.getElementById('en-slug') && !ultimo ? document.getElementById('en-slug') : document.getElementById('en-pw')).focus();
 }
 
 /* =====================================================================

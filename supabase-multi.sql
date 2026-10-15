@@ -787,7 +787,7 @@ returns void language plpgsql security definer set search_path = public, extensi
 declare v_slug text := lower(btrim(coalesce(p_slug, '')));
 begin
   perform _exigir_plat(p_token);
-  if v_slug !~ '^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$' or v_slug in ('plataforma','barbeiro','dono','admin') then
+  if v_slug !~ '^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$' or v_slug in ('plataforma','barbeiro','dono','admin','entrar') then
     raise exception 'slug_invalido';
   end if;
   if exists (select 1 from barbearias where slug = v_slug) then raise exception 'slug_em_uso'; end if;
