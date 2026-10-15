@@ -1,35 +1,37 @@
-# Fila e Faturamento: Barbearia do Andrezinho
+# Fila de Barbearia (várias barbearias, planos Basic, Pro e Expert)
 
-Arquivo único (`index.html`) + banco no Supabase (`supabase.sql`).
+Site em um arquivo (`index.html`) + banco no Supabase (`supabase-multi.sql`) + duas funções do Mercado Pago (`supabase/functions`).
 
 ## Links
-- Cliente: `https://SEU-LINK/`
-- Barbeiro: `https://SEU-LINK/#/barbeiro` (fila, faturamento e rotina dos clientes)
-- Dono (você): `https://SEU-LINK/#/dono` (tudo isso + trocar senhas + corrigir valores)
+- Plataforma (você): `/#/plataforma`, onde cadastra barbearias, muda plano, libera pagamento feito fora do app, define preços e redefine senhas.
+- Cada barbearia: clientes `/#/<endereco>`, barbeiro `/#/<endereco>/barbeiro`, dono `/#/<endereco>/dono`.
+- Links antigos (`/`, `/#/barbeiro`, `/#/dono`) abrem a Barbearia do Andrezinho.
 
-## Estado atual
-- O SQL já foi rodado no seu Supabase (projeto `barbearia-andrezinho`).
-- O `index.html` já está ligado a esse projeto.
-- **As duas senhas ainda são as de exemplo (`TROQUE-SENHA-DONO` e `TROQUE-SENHA-BARBEIRO`).** Antes de publicar, entre em `#/dono` com a senha de exemplo do dono, abra a aba **Senhas** e troque as duas.
+## Planos
+| | Basic R$ 19,90 | Pro R$ 39,90 | Expert R$ 69,90 |
+|---|---|---|---|
+| Fila online, chamada pelo WhatsApp, QR Pix no fim do corte | ✔ | ✔ | ✔ |
+| Faturamento, rotina dos clientes | | ✔ | ✔ |
+| Cadastro de barbeiros (comissão, aluguel de cadeira, salário) | | ✔ | ✔ |
+| Despesas e relatórios mensais e anuais com lucro | | | ✔ |
 
-## Publicar
-1. Deixe só o `index.html` numa pasta.
-2. Abra app.netlify.com/drop e arraste a pasta. O Netlify mostra o endereço do site.
+- Barbearia nova: 2 dias grátis. Venceu: 3 dias de aviso; depois painel e fila pausam (o dono continua entrando para pagar; nada é apagado).
+- Andrezinho: Expert, isento de mensalidade.
+- Preços editáveis no painel da plataforma.
 
-## Como usar no dia a dia
-- **Fila:** Chamar (abre o WhatsApp com a mensagem pronta e inicia 10 min), Finalizar (escolhe o serviço, confirma o valor), Liberar/Remover.
-- **Faturamento:** hoje, semana, mês (comparando com o mesmo período anterior), ticket médio, últimos 14 dias, semana a semana e por serviço.
-- **Clientes:** mostra quem está em rotina, atrasado, sumiu ou espaçando as visitas, com botão “Chamar de volta” no WhatsApp.
-- **Dono:** na aba Faturamento aparecem os últimos atendimentos com Editar e Excluir. O barbeiro não vê esses botões.
+## Pagamentos
+- Mensalidade: assinatura recorrente no Mercado Pago (cartão). Cada pagamento aprovado libera 1 mês.
+  O aviso do Mercado Pago nunca é usado direto: a função consulta a assinatura e o pagamento na API do Mercado Pago antes de liberar.
+- Clientes da barbearia: ao finalizar o corte, o barbeiro escolhe dinheiro, Pix ou cartão. No Pix aparece um QR Code
+  (padrão BR Code do Banco Central) com o valor, na chave do profissional (se ele recebe direto) ou na chave da barbearia.
+  O sistema não confirma o Pix sozinho: o barbeiro confere no app do banco.
 
-## Preços dos serviços
-Os preços no `index.html` (Corte 35, Barba 25, Corte + Barba 55) são **exemplos**. Ajuste em `SERVICOS`, no início do arquivo. Ao finalizar, dá para digitar qualquer valor.
+## Configuração do Supabase (Edge Functions > Secrets)
+- `MP_ACCESS_TOKEN`: Access Token de produção da sua aplicação no Mercado Pago.
+- `NTFY_TOPICO`: canal do app ntfy para receber no celular o aviso de cada mensalidade paga (opcional).
+- Webhook no Mercado Pago (Webhooks > Configurar notificações, eventos de Planos e assinaturas):
+  `https://pndispqytfrezeiokgwk.supabase.co/functions/v1/mp-webhook`
 
-## Limites que você precisa saber
-- O faturamento só aparece para quem entra com senha. Os dados ficam trancados no banco; o painel acessa por funções protegidas.
-- Depois de 8 senhas erradas, o login bloqueia por 10 minutos para todo mundo (proteção contra tentativa de adivinhar).
-- O cronômetro de 10 minutos só remove o cliente da fila com o painel aberto.
-- “Em rotina / atrasado / sumiu” são estimativas pela média de dias entre as visitas de cada cliente (precisa de 2 visitas). As regras ficam em `ROTINA`.
-- Só entram no faturamento os atendimentos finalizados pelo botão Finalizar.
-- Números de telefone ficam guardados no banco. Vale avisar os clientes (LGPD).
-- Os limites dos planos gratuitos mudam; confira nos sites do Supabase e da hospedagem.
+## Dados pessoais
+CPF, nascimento e endereço dos profissionais ficam só para o dono da barbearia (o barbeiro vê apenas o nome).
+Telefones dos clientes e dados dos profissionais são dados pessoais: vale informar as pessoas sobre o uso (LGPD).
