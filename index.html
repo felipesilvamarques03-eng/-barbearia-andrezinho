@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fila da Barbearia</title>
+<style>
+:root{--bg:#0e0e10;--card:#18181b;--line:#2a2a2f;--gold:#c9a24b;--gold2:#e6c878;--txt:#f2f2f2;--mut:#9a9aa3;--red:#d9534f;--green:#4caf7a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh;display:flex;justify-content:center}
+#app{width:100%;max-width:480px;padding:24px 18px 60px}
+#app.wide{max-width:760px}
+h1{font-size:28px;letter-spacing:2px;text-transform:uppercase;color:var(--gold2);text-align:center}
+h2{font-size:18px;margin-bottom:12px}
+.logo{text-align:center;margin:40px 0 8px;font-size:54px}
+.sub{color:var(--mut);text-align:center;margin:8px 0 32px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
+label{display:block;font-size:13px;color:var(--mut);margin:12px 0 6px}
+input{width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:#101013;color:var(--txt);font-size:16px;outline:none}
+input:focus{border-color:var(--gold)}
+button{cursor:pointer;border:0;border-radius:999px;padding:14px 22px;font-size:16px;font-weight:600;transition:.2s}
+.btn{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#111;width:100%;margin-top:18px}
+.btn:active{transform:scale(.98)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+.sm{padding:9px 14px;font-size:14px;width:auto;margin:0}
+.red{background:var(--red);color:#fff}.green{background:var(--green);color:#0e0e10}
+.big{font-size:64px;font-weight:700;color:var(--gold2);text-align:center;line-height:1}
+.kbig{font-size:34px;font-weight:700;color:var(--gold2)}
+.mut{color:var(--mut);font-size:14px}.center{text-align:center}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pos{width:34px;height:34px;border-radius:50%;background:var(--gold);color:#111;font-weight:700;display:grid;place-items:center;flex:none}
+.item{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border:0}.grow{flex:1;min-width:0}
+.name{font-weight:600}.timer{font-variant-numeric:tabular-nums;color:var(--gold2);font-weight:700}
+.timer.late{color:var(--red)}
+.tag{font-size:12px;padding:3px 9px;border-radius:999px;background:#2a2a2f;color:var(--gold2);white-space:nowrap}
+.tag.ok{background:rgba(76,175,122,.18);color:#b8f0d0}
+.tag.warn{background:rgba(230,200,120,.18);color:var(--gold2)}
+.tag.bad{background:rgba(217,83,79,.2);color:#f5b3b0}
+.alert{background:rgba(76,175,122,.15);border:1px solid var(--green);color:#b8f0d0;padding:16px;border-radius:14px;text-align:center;font-weight:600}
+.back{background:none;color:var(--mut);padding:6px 0;font-size:14px;margin-bottom:10px}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.err{color:var(--red);font-size:13px;margin-top:10px;min-height:16px}
+.tabs{display:flex;gap:8px;overflow-x:auto;margin:14px 0}
+.tab{background:#1f1f24;color:var(--mut);padding:10px 16px;border-radius:999px;font-size:15px;white-space:nowrap}
+.tab.on{background:var(--gold);color:#111}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+.kpi b{display:block;font-size:22px;color:var(--gold2);margin:2px 0}
+.kpi small{color:var(--mut);display:block;font-size:12px}
+.up{color:var(--green)}.down{color:var(--red)}
+.bars{display:flex;align-items:flex-end;gap:5px;height:170px;margin-top:8px}
+.bcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:4px;min-width:0}
+.bar{width:100%;background:linear-gradient(var(--gold2),var(--gold));border-radius:6px 6px 0 0;opacity:.75}
+.bar.hoje{opacity:1}
+.bv{font-size:10px;color:var(--mut)}.bl{font-size:11px;color:var(--mut)}
+.trow{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.trow:last-child{border:0}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.chip{background:#1f1f24;color:var(--txt);border:1px solid var(--line);padding:9px 14px;font-size:14px}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.sheet{background:var(--card);width:100%;max-width:480px;border-radius:22px 22px 0 0;padding:22px;border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal"></div>
+
+<script>
+/* ============ CONFIGURAÇÃO (edite aqui) ============ */
+const CONFIG = {
+  SHOP_NAME: "Barbearia do Andrezinho",
+  MIN_POR_CLIENTE: 30,        // minutos médios por atendimento (estimativa de espera)
+  TOLERANCIA_MIN: 10,         // minutos de tolerância depois de chamar
+  // Serviços de EXEMPLO: ajuste nomes e preços. Ao finalizar, o barbeiro ainda pode digitar qualquer valor.
+  SERVICOS: [
+    { nome: "Corte", preco: 35 },
+    { nome: "Barba", preco: 25 },
+    { nome: "Corte + Barba", preco: 55 }
+  ],
+  // Regras da aba Clientes (rotina): margem 1.25 = "atrasado" depois de 25% além do intervalo habitual;
+  // sumido = 2 vezes o intervalo habitual; cicloMinimo evita alarme falso em quem vem a cada poucos dias.
+  ROTINA: { margem: 1.25, sumido: 2, cicloMinimo: 7, novoAteDias: 45 },
+  SUPABASE_URL: "https://pndispqytfrezeiokgwk.supabase.co",
+  SUPABASE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBuZGlzcHF5dGZyZXplaW9rZ3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNzYxNDcsImV4cCI6MjEwNzY1MjE0N30.CFZrPdQ8WJezaVKftyFBwk1r3yL2VP0lu5cRnohSpzc"
+};
+/* ==================================================== */
+
+const $app = document.getElementById('app');
+const $modal = document.getElementById('modal');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const digits = s => (s || '').replace(/\D/g, '');
+const fmtTime = iso => new Date(iso).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+const dm = d => String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
+const brl = v => new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'}).format(Number(v) || 0);
+const curto = v => v >= 1000 ? (v/1000).toFixed(1).replace('.', ',') + 'k' : String(Math.round(v));
+const maskPhone = v => {
+  const d = digits(v).slice(0, 11);
+  if (d.length <= 2) return d ? '(' + d : '';
+  if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+};
+const mmss = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+const LS = {
+  get(k, d){ try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+};
+function parseValor(s){
+  s = String(s || '').trim().replace(/[R$\s]/g, '');
+  if (!s) return null;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = Number(s);
+  return Number.isFinite(n) && n >= 0 && n <= 100000 ? Math.round(n * 100) / 100 : null;
+}
+
+/* ---------- Comunicação com o Supabase (funções do banco) ---------- */
+async function rpc(fn, args = {}) {
+  const r = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { apikey: CONFIG.SUPABASE_KEY, Authorization: 'Bearer ' + CONFIG.SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args)
+  });
+  const t = await r.text();
+  if (!r.ok) {
+    let m = ''; try { m = JSON.parse(t).message || ''; } catch {}
+    const e = new Error(m || ('HTTP ' + r.status)); e.code = m; throw e;
+  }
+  return t ? JSON.parse(t) : null;
+}
+const ERROS = {
+  telefone_invalido: 'Informe um WhatsApp válido: (XX) 9XXXX-XXXX',
+  nome_invalido: 'Informe seu nome ou apelido.',
+  fila_cheia: 'A fila está cheia no momento. Tente mais tarde.',
+  bloqueado: 'Muitas tentativas erradas. Espere 10 minutos e tente de novo.',
+  valor_invalido: 'Valor inválido.',
+  so_dono: 'Só o dono pode fazer isso.',
+  senha_repetida: 'Use uma senha diferente da outra.',
+  senha_curta: 'Use pelo menos 6 caracteres.',
+  nao_encontrado: 'Esse cliente já não está mais na fila.'
+};
+const msgErro = e => ERROS[e && e.code] || 'Algo deu errado. Verifique a internet e tente de novo.';
+
+/* ---------- Rotas ---------- */
+let timers = [];
+const clearTimers = () => { timers.forEach(clearInterval); timers = []; };
+function route(){
+  clearTimers();
+  $app.onclick = null; $modal.onclick = null; $modal.innerHTML = ''; $app.className = '';
+  const h = location.hash;
+  if (h.startsWith('#/dono')) return adminView('dono');
+  if (h.startsWith('#/barbeiro') || h.startsWith('#/admin')) return adminView('barbeiro');
+  const t = LS.get('bb_ticket', null);
+  if (t) return statusView(t);
+  homeView();
+}
+window.addEventListener('hashchange', route);
+
+/* =====================================================================
+   CLIENTE
+   ===================================================================== */
+function homeView(){
+  $app.innerHTML = `
+    <div class="logo">💈</div>
+    <h1>${esc(CONFIG.SHOP_NAME)}</h1>
+    <p class="sub">Sem fila no balcão. Entre na lista e acompanhe pelo celular.</p>
+    <button class="btn" id="go">Entrar na Fila / Agendar</button>`;
+  document.getElementById('go').onclick = formView;
+}
+
+function formView(){
+  $app.innerHTML = `
+    <button class="back" id="bk">← Voltar</button>
+    <h2>Seus dados</h2>
+    <div class="card">
+      <label>WhatsApp</label>
+      <input id="tel" inputmode="numeric" placeholder="(21) 99999-9999" autocomplete="tel">
+      <div id="hello" class="mut" style="margin-top:8px"></div>
+      <label>Nome ou apelido</label>
+      <input id="nome" placeholder="Como podemos te chamar?" autocomplete="given-name">
+      <div class="err" id="err"></div>
+      <button class="btn" id="enviar">Entrar na fila</button>
+    </div>`;
+  const tel = document.getElementById('tel'), nome = document.getElementById('nome'), hello = document.getElementById('hello'), err = document.getElementById('err');
+  document.getElementById('bk').onclick = homeView;
+
+  tel.addEventListener('input', async () => {
+    tel.value = maskPhone(tel.value);
+    hello.textContent = '';
+    if (digits(tel.value).length === 11) {
+      try {
+        const r = await rpc('buscar_cliente', {p_tel: digits(tel.value)});
+        if (r && r[0]) {
+          nome.value = r[0].nome;
+          hello.innerHTML = `👋 Bem-vindo de volta, <b>${esc(r[0].nome)}</b>! ${r[0].visitas || 0} visita(s)` +
+            (r[0].ultima_visita ? ` · última em ${new Date(r[0].ultima_visita).toLocaleDateString('pt-BR')}` : '');
+        }
+      } catch (e) { console.error(e); }
+    }
+  });
+
+  document.getElementById('enviar').onclick = async () => {
+    err.textContent = '';
+    const t = digits(tel.value), n = nome.value.trim();
+    if (!/^\d{2}9\d{8}$/.test(t)) return err.textContent = ERROS.telefone_invalido;
+    if (n.length < 2) return err.textContent = ERROS.nome_invalido;
+    try {
+      const id = await rpc('entrar_fila', {p_tel: t, p_nome: n});
+      const ticket = {id, tel: t, nome: n};
+      LS.set('bb_ticket', ticket);
+      statusView(ticket);
+    } catch (e) { err.textContent = msgErro(e); console.error(e); }
+  };
+}
+
+function statusView(ticket){
+  const render = async () => {
+    let fila;
+    try { fila = await rpc('fila_publica'); } catch { return; }
+    const idx = fila.findIndex(f => f.id === ticket.id);
+    if (idx < 0) {
+      clearTimers(); LS.set('bb_ticket', null);
+      $app.innerHTML = `<div class="logo">✅</div><h1>Obrigado!</h1><p class="sub">Você saiu da fila. Quando quiser, é só voltar.</p><button class="btn" id="novo">Entrar novamente</button>`;
+      document.getElementById('novo').onclick = homeView;
+      return;
+    }
+    const me = fila[idx], espera = idx * CONFIG.MIN_POR_CLIENTE;
+    $app.innerHTML = `
+      <h1>${esc(CONFIG.SHOP_NAME)}</h1>
+      <p class="sub">Olá, ${esc(ticket.nome)}!</p>
+      ${me.status === 'chamado'
+        ? `<div class="alert">🔔 É a sua vez! Compareça em até ${CONFIG.TOLERANCIA_MIN} minutos para não perder a vez.</div>`
+        : `<div class="card center"><div class="mut">Sua posição</div><div class="big">${idx + 1}º</div>
+           <p class="mut" style="margin-top:10px">${idx === 0 ? 'Você é o próximo!' : `Tempo estimado: ~${espera} min`}</p>
+           <p class="mut">Entrada registrada às ${fmtTime(me.entrada)}</p></div>`}
+      <div class="card" style="margin-top:14px"><h2>Lista de espera</h2>
+        ${fila.map((f, i) => `<div class="item"><div class="pos">${i + 1}</div>
+          <div class="grow"><div class="name">${f.id === ticket.id ? 'Você' : esc(f.primeiro_nome)}</div>
+          <div class="mut">chegou às ${fmtTime(f.entrada)}</div></div>
+          ${f.status === 'chamado' ? '<span class="tag">chamado</span>' : ''}</div>`).join('')}
+      </div>
+      <button class="btn ghost" id="sair">Sair da fila</button>`;
+    document.getElementById('sair').onclick = async () => {
+      if (confirm('Deseja sair da fila?')) { try { await rpc('sair_fila', {p_id: ticket.id, p_tel: ticket.tel}); } catch {} render(); }
+    };
+  };
+  render();
+  timers.push(setInterval(render, 5000));
+}
+
+/* =====================================================================
+   ANÁLISES (faturamento e rotina dos clientes)
+   ===================================================================== */
+/*ANALYTICS-START*/
+const DAY = 86400000;
+const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const startOfWeek = d => { const x = startOfDay(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };   // semana começa na segunda
+const startOfMonth = d => { const x = startOfDay(d); x.setDate(1); return x; };
+const dayKey = d => { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0'); };
+const dayDiff = (a, b) => Math.round((startOfDay(a) - startOfDay(b)) / DAY);
+
+function somar(rows, de, ate){
+  let total = 0, qtd = 0;
+  for (const r of rows) { const t = new Date(r.finalizado_em); if (t >= de && t < ate) { total += Number(r.valor || 0); qtd++; } }
+  return { total, qtd };
+}
+function variacao(atual, anterior){ if (!anterior) return atual ? null : 0; return (atual - anterior) / anterior * 100; }   // null = sem base de comparação
+
+function resumoFaturamento(rows, agora = new Date()){
+  const hoje0 = startOfDay(agora), amanha = addDays(hoje0, 1);
+  const hoje = somar(rows, hoje0, amanha), ontem = somar(rows, addDays(hoje0, -1), hoje0);
+  const sem0 = startOfWeek(agora), semAnt0 = addDays(sem0, -7), decorridos = dayDiff(hoje0, sem0) + 1;
+  const sem = somar(rows, sem0, amanha), semAnt = somar(rows, semAnt0, addDays(semAnt0, decorridos));
+  const mes0 = startOfMonth(agora), mesAnt0 = new Date(mes0.getFullYear(), mes0.getMonth() - 1, 1);
+  const diasMesAnt = new Date(mesAnt0.getFullYear(), mesAnt0.getMonth() + 1, 0).getDate();
+  const mes = somar(rows, mes0, amanha);
+  const mesAnt = somar(rows, mesAnt0, new Date(mesAnt0.getFullYear(), mesAnt0.getMonth(), Math.min(agora.getDate(), diasMesAnt) + 1));
+  const d30 = somar(rows, addDays(hoje0, -29), amanha);
+  return { hoje, ontem, sem, semAnt, mes, mesAnt, d30, ticket: d30.qtd ? d30.total / d30.qtd : 0 };
+}
+function serieDiaria(rows, dias = 14, agora = new Date()){
+  const hoje0 = startOfDay(agora), out = [];
+  for (let i = dias - 1; i >= 0; i--) { const d = addDays(hoje0, -i); out.push({ dia: d, ...somar(rows, d, addDays(d, 1)) }); }
+  return out;
+}
+function serieSemanal(rows, semanas = 8, agora = new Date()){
+  const sem0 = startOfWeek(agora), out = [];
+  for (let i = semanas - 1; i >= 0; i--) { const ini = addDays(sem0, -7 * i); out.push({ inicio: ini, parcial: i === 0, ...somar(rows, ini, addDays(ini, 7)) }); }
+  return out;
+}
+function porServico(rows, dias = 30, agora = new Date()){
+  const de = addDays(startOfDay(agora), -(dias - 1)), ate = addDays(startOfDay(agora), 1), m = new Map();
+  for (const r of rows) {
+    const t = new Date(r.finalizado_em); if (t < de || t >= ate) continue;
+    const k = r.servico || 'Sem serviço', x = m.get(k) || { servico: k, qtd: 0, total: 0 };
+    x.qtd++; x.total += Number(r.valor || 0); m.set(k, x);
+  }
+  return [...m.values()].sort((a, b) => b.total - a.total);
+}
+function analisarClientes(rows, agora = new Date(), cfg = CONFIG.ROTINA){
+  const por = new Map();
+  for (const r of rows) {   // rows vem do mais recente para o mais antigo: o primeiro nome visto é o mais atual
+    let c = por.get(r.telefone);
+    if (!c) { c = { telefone: r.telefone, nome: r.nome, dias: new Map(), total: 0 }; por.set(r.telefone, c); }
+    c.dias.set(dayKey(r.finalizado_em), startOfDay(r.finalizado_em)); c.total += Number(r.valor || 0);
+  }
+  const hoje = startOfDay(agora), lista = [];
+  for (const c of por.values()) {
+    const dias = [...c.dias.values()].sort((a, b) => a - b), n = dias.length, ultima = dias[n - 1];
+    const gaps = []; for (let i = 1; i < n; i++) gaps.push(dayDiff(dias[i], dias[i - 1]));
+    const media = gaps.length ? gaps.reduce((s, g) => s + g, 0) / gaps.length : null;
+    const ciclo = media === null ? null : Math.max(media, cfg.cicloMinimo);
+    const desde = dayDiff(hoje, ultima);
+    let status;
+    if (n === 1) status = desde <= cfg.novoAteDias ? 'novo' : 'sumido';
+    else if (desde <= ciclo * cfg.margem) status = 'rotina';
+    else if (desde <= ciclo * cfg.sumido) status = 'atrasado';
+    else status = 'sumido';
+    let espacando = false;
+    if (n >= 4) {
+      const antes = gaps.slice(0, -1), mAnt = antes.reduce((s, g) => s + g, 0) / antes.length;
+      espacando = gaps[gaps.length - 1] >= Math.max(mAnt * 1.5, mAnt + 5);
+    }
+    lista.push({ telefone: c.telefone, nome: c.nome, visitas: n, total: c.total, ciclo: media === null ? null : Math.round(media),
+      desde, status, espacando, ultima, proxima: ciclo ? addDays(ultima, Math.round(ciclo)) : null });
+  }
+  const peso = { atrasado: 0, sumido: 1, rotina: 2, novo: 3 };
+  lista.sort((a, b) => (peso[a.status] - peso[b.status]) || ((b.desde - (b.ciclo || 0)) - (a.desde - (a.ciclo || 0))));
+  return lista;
+}
+function contagemClientes(lista){
+  const c = { rotina: 0, atrasado: 0, sumido: 0, novo: 0, espacando: 0 };
+  for (const x of lista) { c[x.status]++; if (x.espacando) c.espacando++; }
+  return c;
+}
+/*ANALYTICS-END*/
+
+/* =====================================================================
+   ÁREA RESTRITA (barbeiro e dono)
+   ===================================================================== */
+const S = { token: null, papel: null, need: 'barbeiro', tab: 'fila', fila: [], atend: [], busca: '' };
+const expirando = new Set();
+const restante = f => Math.max(0, CONFIG.TOLERANCIA_MIN * 60 - Math.floor((Date.now() - new Date(f.chamado_em)) / 1000));
+const tabsDisponiveis = () => S.papel === 'dono' ? ['fila', 'fat', 'cli', 'senhas'] : ['fila', 'fat', 'cli'];
+const ROTULO_TAB = { fila: 'Fila', fat: 'Faturamento', cli: 'Clientes', senhas: 'Senhas' };
+
+function adminErr(e){
+  if (e && (e.code === 'nao_autorizado')) { logout(); return true; }
+  console.error(e); return false;
+}
+
+function adminView(need){
+  S.need = need;
+  S.token = sessionStorage.getItem('bb_token'); S.papel = sessionStorage.getItem('bb_papel');
+  if (!S.token) return loginView();
+  if (need === 'dono' && S.papel !== 'dono') return loginView('Esta área é só do dono.');
+  startAdmin();
+}
+
+function loginView(aviso = ''){
+  $app.className = ''; $modal.innerHTML = '';
+  $app.innerHTML = `<div class="logo">🔒</div><h1>${S.need === 'dono' ? 'Área do dono' : 'Área do barbeiro'}</h1>
+    <p class="sub">${esc(CONFIG.SHOP_NAME)}</p>
+    <div class="card"><label>Senha</label><input id="pw" type="password" autocomplete="current-password">
+    <div class="err" id="err">${esc(aviso)}</div><button class="btn" id="ok">Entrar</button></div>`;
+  const go = async () => {
+    const pw = document.getElementById('pw').value, err = document.getElementById('err');
+    err.textContent = ''; if (!pw) return;
+    try {
+      const r = await rpc('adm_login', {p_pin: pw});
+      if (!r || !r.length) return err.textContent = 'Senha incorreta.';
+      if (S.need === 'dono' && r[0].out_papel !== 'dono') {
+        rpc('adm_sair', {p_token: r[0].out_token}).catch(() => {});
+        return err.textContent = 'Esta área é só do dono.';
+      }
+      sessionStorage.setItem('bb_token', r[0].out_token); sessionStorage.setItem('bb_papel', r[0].out_papel);
+      adminView(S.need);
+    } catch (e) { err.textContent = msgErro(e); }
+  };
+  document.getElementById('ok').onclick = go;
+  document.getElementById('pw').addEventListener('keydown', e => e.key === 'Enter' && go());
+}
+
+function logout(){
+  const t = S.token;
+  sessionStorage.removeItem('bb_token'); sessionStorage.removeItem('bb_papel');
+  S.token = null; S.papel = null; clearTimers(); $app.onclick = null; $modal.onclick = null; $modal.innerHTML = '';
+  if (t) rpc('adm_sair', {p_token: t}).catch(() => {});
+  loginView();
+}
+
+async function startAdmin(){
+  $app.className = 'wide';
+  if (!tabsDisponiveis().includes(S.tab)) S.tab = 'fila';
+  shell();
+  $app.onclick = onAdminClick; $modal.onclick = onModalClick;
+  await Promise.all([carregarFila(), carregarAtend()]);
+  renderTab();
+  timers.push(setInterval(() => { if (S.tab === 'fila') carregarFila(); }, 4000));
+  timers.push(setInterval(async () => { await carregarAtend(); if (S.tab === 'cli') renderCliLista(); else if (S.tab === 'fat' || S.tab === 'fila') renderTab(); }, 60000));
+  timers.push(setInterval(tickTimers, 1000));
+}
+
+function shell(){
+  $app.innerHTML = `
+    <div class="row"><h2 style="margin:0">💈 ${esc(CONFIG.SHOP_NAME)}</h2>
+      <div><span class="tag">${S.papel === 'dono' ? 'Dono' : 'Barbeiro'}</span> <button class="btn ghost sm" data-a="logout">Sair</button></div></div>
+    <div class="tabs">${tabsDisponiveis().map(t => `<button class="tab${S.tab === t ? ' on' : ''}" data-a="tab" data-t="${t}">${ROTULO_TAB[t]}</button>`).join('')}</div>
+    <div id="tab"></div>`;
+}
+
+async function carregarFila(){
+  try { S.fila = await rpc('adm_fila', {p_token: S.token}); if (S.tab === 'fila') renderTab(); }
+  catch (e) { adminErr(e); }
+}
+async function carregarAtend(){
+  try { S.atend = await rpc('adm_atendimentos', {p_token: S.token}) || []; }
+  catch (e) { adminErr(e); }
+}
+
+function renderTab(){
+  const el = document.getElementById('tab'); if (!el) return;
+  const views = { fila: viewFila, fat: viewFat, cli: viewCli, senhas: viewSenhas };
+  el.innerHTML = (views[S.tab] || viewFila)();
+  if (S.tab === 'cli') renderCliLista();
+}
+
+function tickTimers(){
+  if (S.tab !== 'fila') return;
+  for (const f of S.fila) {
+    if (f.status !== 'chamado' || !f.chamado_em) continue;
+    const s = restante(f), el = document.querySelector(`[data-t="${f.id}"]`);
+    if (el) { el.textContent = '⏱ ' + mmss(s); el.classList.toggle('late', s < 60); }
+    if (s === 0 && !expirando.has(f.id)) {
+      expirando.add(f.id);
+      rpc('adm_remover', {p_token: S.token, p_id: f.id}).then(carregarFila).catch(adminErr);
+    }
+  }
+}
+
+/* ---------- Aba Fila ---------- */
+function viewFila(){
+  const r = resumoFaturamento(S.atend);
+  return `<div class="card center"><div class="mut">Hoje</div><div class="kbig">${brl(r.hoje.total)}</div>
+      <div class="mut">${r.hoje.qtd} atendimento(s) finalizado(s)</div></div>
+    <p class="mut" style="margin-bottom:10px">Link do cliente: ${esc(location.origin + location.pathname)}</p>
+    <div class="card">${S.fila.length ? S.fila.map(itemFila).join('') : '<p class="mut center">Ninguém na fila.</p>'}</div>`;
+}
+function itemFila(f, i){
+  return `<div class="item"><div class="pos">${i + 1}</div>
+    <div class="grow"><div class="name">${esc(f.nome)}${f.visitas ? ` <span class="tag">${f.visitas} visita(s)</span>` : ' <span class="tag">novo</span>'}</div>
+    <div class="mut">${maskPhone(f.telefone)} · chegou ${fmtTime(f.entrada)}</div>
+    ${f.status === 'chamado' && f.chamado_em ? `<div class="timer" data-t="${f.id}">⏱ ${mmss(restante(f))}</div>` : ''}
+    <div class="actions">
+      <button class="green sm" data-a="chamar" data-id="${f.id}">${f.status === 'chamado' ? 'Chamar de novo' : '📲 Chamar'}</button>
+      <button class="btn sm" style="width:auto;margin:0" data-a="finalizar" data-id="${f.id}">✔ Finalizar</button>
+      <button class="red sm" data-a="remover" data-id="${f.id}">${f.status === 'chamado' ? 'Liberar' : 'Remover'}</button>
+    </div></div></div>`;
+}
+
+function abrirFinalizar(f){
+  $modal.innerHTML = `<div class="ov"><div class="sheet">
+    <h2>Finalizar ${esc(f.nome)}</h2>
+    <p class="mut">Escolha o serviço ou digite o valor cobrado.</p>
+    <div class="chips">${CONFIG.SERVICOS.map((s, i) => `<button class="chip" data-a="svc" data-i="${i}">${esc(s.nome)} · ${brl(s.preco)}</button>`).join('')}</div>
+    <label>Serviço</label><input id="f-serv" placeholder="Ex.: Corte">
+    <label>Valor (R$)</label><input id="f-val" inputmode="decimal" placeholder="0,00">
+    <div class="err" id="f-err"></div>
+    <div class="actions" style="margin-top:14px"><button class="btn ghost sm" data-a="fcancel">Cancelar</button>
+    <button class="btn sm" style="width:auto;margin:0" data-a="fok" data-id="${f.id}">Confirmar</button></div></div></div>`;
+}
+async function onModalClick(e){
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  const a = b.dataset.a;
+  if (a === 'fcancel') { $modal.innerHTML = ''; return; }
+  if (a === 'svc') {
+    const s = CONFIG.SERVICOS[Number(b.dataset.i)];
+    document.getElementById('f-serv').value = s.nome;
+    document.getElementById('f-val').value = String(s.preco).replace('.', ',');
+    return;
+  }
+  if (a === 'fok') {
+    const err = document.getElementById('f-err'); err.textContent = '';
+    const val = parseValor(document.getElementById('f-val').value);
+    if (val === null) return err.textContent = 'Digite um valor válido (ex.: 35 ou 35,50).';
+    try {
+      await rpc('adm_finalizar', {p_token: S.token, p_id: Number(b.dataset.id), p_servico: document.getElementById('f-serv').value.trim(), p_valor: val});
+      $modal.innerHTML = '';
+      await Promise.all([carregarFila(), carregarAtend()]); renderTab();
+    } catch (ex) { if (!adminErr(ex)) err.textContent = msgErro(ex); }
+  }
+}
+
+/* ---------- Aba Faturamento ---------- */
+const varTag = p => p === null ? '<span class="mut">sem base</span>'
+  : (p >= 0 ? `<span class="up">▲ ${p.toFixed(0)}%</span>` : `<span class="down">▼ ${Math.abs(p).toFixed(0)}%</span>`);
+const kpi = (rot, valor, sub) => `<div class="kpi"><small>${rot}</small><b>${valor}</b><small>${sub}</small></div>`;
+
+function viewFat(){
+  if (!S.atend.length) return `<div class="card center"><p class="mut">Ainda não há atendimentos finalizados. Toque em “Finalizar” na fila para registrar o valor de cada atendimento.</p></div>`;
+  const r = resumoFaturamento(S.atend), dias = serieDiaria(S.atend, 14), semanas = serieSemanal(S.atend, 8), serv = porServico(S.atend, 30);
+  const max = Math.max(...dias.map(d => d.total), 1);
+  return `<div class="kpis">
+      ${kpi('Hoje', brl(r.hoje.total), `${r.hoje.qtd} atend. · ${varTag(variacao(r.hoje.total, r.ontem.total))} vs ontem`)}
+      ${kpi('Esta semana', brl(r.sem.total), `${r.sem.qtd} atend. · ${varTag(variacao(r.sem.total, r.semAnt.total))} vs mesmo período da semana passada`)}
+      ${kpi('Este mês', brl(r.mes.total), `${r.mes.qtd} atend. · ${varTag(variacao(r.mes.total, r.mesAnt.total))} vs mesmo período do mês passado`)}
+      ${kpi('Ticket médio (30 dias)', brl(r.ticket), `${r.d30.qtd} atend. · ${brl(r.d30.total)} no total`)}
+    </div>
+    <div class="card"><h2>Últimos 14 dias</h2>
+      <div class="bars">${dias.map((d, i) => `<div class="bcol"><div class="bv">${d.total ? curto(d.total) : ''}</div>
+        <div class="bar${i === dias.length - 1 ? ' hoje' : ''}" style="height:${Math.max(d.total / max * 120, d.total ? 4 : 1)}px"></div>
+        <div class="bl">${String(d.dia.getDate()).padStart(2, '0')}</div></div>`).join('')}</div></div>
+    <div class="card"><h2>Semana a semana (seg–dom)</h2>
+      ${semanas.map((w, i) => { const ant = semanas[i - 1];
+        return `<div class="trow"><span>${dm(w.inicio)} – ${dm(addDays(w.inicio, 6))}</span><span>${brl(w.total)} · ${w.qtd} atend.</span>
+        <span>${w.parcial ? '<span class="mut">em andamento</span>' : (ant ? varTag(variacao(w.total, ant.total)) : '')}</span></div>`; }).reverse().join('')}</div>
+    <div class="card"><h2>Por serviço (30 dias)</h2>
+      ${serv.length ? serv.map(s => `<div class="trow"><span>${esc(s.servico)}</span><span>${s.qtd}x · ${brl(s.total)}</span></div>`).join('') : '<p class="mut">Sem dados.</p>'}</div>
+    ${S.papel === 'dono' ? `<div class="card"><h2>Últimos atendimentos (só o dono corrige)</h2>
+      ${S.atend.slice(0, 12).map(a => `<div class="item"><div class="grow"><div class="name">${esc(a.nome)} · ${brl(a.valor)}</div>
+        <div class="mut">${dm(new Date(a.finalizado_em))} ${fmtTime(a.finalizado_em)} · ${esc(a.servico || 'sem serviço')}</div></div>
+        <button class="btn ghost sm" data-a="edval" data-id="${a.id}">Editar</button>
+        <button class="red sm" data-a="delat" data-id="${a.id}">Excluir</button></div>`).join('')}</div>` : ''}`;
+}
+
+/* ---------- Aba Clientes ---------- */
+function viewCli(){
+  if (!S.atend.length) return `<div class="card center"><p class="mut">A rotina dos clientes aparece aqui depois dos primeiros atendimentos finalizados.</p></div>`;
+  const c = contagemClientes(analisarClientes(S.atend)), R = CONFIG.ROTINA;
+  return `<div class="kpis">
+      ${kpi('Em rotina', c.rotina, 'voltam no prazo habitual')}
+      ${kpi('Atrasados', c.atrasado, `passaram ${Math.round((R.margem - 1) * 100)}% do intervalo habitual`)}
+      ${kpi('Sumiram', c.sumido, `passaram ${R.sumido}x o intervalo habitual`)}
+      ${kpi('Espaçando visitas', c.espacando, 'a última volta demorou bem mais que o normal')}
+    </div>
+    <input id="busca" placeholder="Buscar por nome ou telefone" value="${esc(S.busca)}" oninput="S.busca=this.value.toLowerCase();renderCliLista()">
+    <div class="card" style="margin-top:14px" id="clilist"></div>
+    <p class="mut">Intervalo habitual = média de dias entre as visitas do próprio cliente (precisa de 2 visitas). Estas regras são estimativas e podem ser ajustadas em ROTINA, no início do arquivo.</p>`;
+}
+function renderCliLista(){
+  const el = document.getElementById('clilist'); if (!el) return;
+  const q = S.busca, qd = digits(q);
+  const lista = analisarClientes(S.atend).filter(c => !q || c.nome.toLowerCase().includes(q) || (qd && c.telefone.includes(qd)));
+  const tag = { rotina: ['ok', 'Em rotina'], atrasado: ['warn', 'Atrasado'], sumido: ['bad', 'Sumiu'], novo: ['', 'Novo'] };
+  el.innerHTML = lista.length ? lista.map(c => `<div class="item"><div class="grow">
+      <div class="name">${esc(c.nome)} <span class="tag ${tag[c.status][0]}">${tag[c.status][1]}</span>${c.espacando ? ' <span class="tag warn">Espaçando</span>' : ''}</div>
+      <div class="mut">${maskPhone(c.telefone)} · ${c.visitas} visita(s) · ${brl(c.total)} no total</div>
+      <div class="mut">${c.ciclo ? `Costuma vir a cada ${c.ciclo} dias · ` : ''}última vez há ${c.desde} dia(s)${c.proxima && c.status === 'rotina' ? ` · próxima esperada ${dm(c.proxima)}` : ''}</div></div>
+      ${c.status === 'atrasado' || c.status === 'sumido' || c.espacando ? `<button class="green sm" data-a="voltar" data-tel="${c.telefone}" data-nome="${esc(c.nome)}">Chamar de volta</button>` : ''}
+    </div>`).join('') : '<p class="mut center">Nenhum cliente encontrado.</p>';
+}
+
+/* ---------- Aba Senhas (só o dono) ---------- */
+function viewSenhas(){
+  const bloco = (quem, titulo) => `<div class="card"><h2>${titulo}</h2>
+    <label>Nova senha (mínimo 6 caracteres)</label><input id="np-${quem}" type="password" autocomplete="new-password">
+    <button class="btn sm" style="margin-top:12px" data-a="trocar" data-quem="${quem}">Salvar</button></div>`;
+  return `${bloco('dono', 'Senha do dono (a sua)')}${bloco('barbeiro', 'Senha do barbeiro')}
+    <div class="err" id="pw-msg"></div>
+    <p class="mut">Ao trocar a senha do barbeiro, ele precisa entrar de novo. As duas senhas devem ser diferentes.</p>`;
+}
+
+/* ---------- Cliques da área restrita ---------- */
+async function onAdminClick(e){
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  const a = b.dataset.a, id = b.dataset.id ? Number(b.dataset.id) : null;
+  try {
+    if (a === 'tab') { S.tab = b.dataset.t; shell(); renderTab(); return; }
+    if (a === 'logout') return logout();
+    if (a === 'chamar') {
+      const f = S.fila.find(x => x.id === id); if (!f) return;
+      const msg = `Fala ${f.nome}! 💈 Chegou a sua vez aqui na ${CONFIG.SHOP_NAME}. Por favor, compareça à cadeira em até ${CONFIG.TOLERANCIA_MIN} minutos para não perder a vez.`;
+      window.open(`https://wa.me/55${f.telefone}?text=${encodeURIComponent(msg)}`, '_blank');
+      await rpc('adm_chamar', {p_token: S.token, p_id: id}); return carregarFila();
+    }
+    if (a === 'remover') { await rpc('adm_remover', {p_token: S.token, p_id: id}); return carregarFila(); }
+    if (a === 'finalizar') { const f = S.fila.find(x => x.id === id); if (f) abrirFinalizar(f); return; }
+    if (a === 'voltar') {
+      const msg = `Fala ${b.dataset.nome}! 💈 Faz um tempinho que você não passa aqui na ${CONFIG.SHOP_NAME}. Bora cuidar do visual? Me chama que eu encaixo você.`;
+      window.open(`https://wa.me/55${b.dataset.tel}?text=${encodeURIComponent(msg)}`, '_blank'); return;
+    }
+    if (a === 'edval') {
+      const at = S.atend.find(x => x.id === id); if (!at) return;
+      const v = prompt('Novo valor (R$) para ' + at.nome, String(at.valor).replace('.', ',')); if (v === null) return;
+      const n = parseValor(v); if (n === null) return alert('Valor inválido.');
+      await rpc('dono_editar_valor', {p_token: S.token, p_id: id, p_valor: n});
+      await carregarAtend(); return renderTab();
+    }
+    if (a === 'delat') {
+      if (!confirm('Excluir este atendimento do faturamento?')) return;
+      await rpc('dono_excluir_atendimento', {p_token: S.token, p_id: id});
+      await carregarAtend(); return renderTab();
+    }
+    if (a === 'trocar') {
+      const quem = b.dataset.quem, inp = document.getElementById('np-' + quem), msg = document.getElementById('pw-msg');
+      msg.className = 'err'; msg.textContent = '';
+      if (inp.value.length < 6) return msg.textContent = ERROS.senha_curta;
+      const novo = inp.value;
+      await rpc('dono_trocar_pin', {p_token: S.token, p_quem: quem, p_novo: novo});
+      inp.value = '';
+      if (quem === 'dono') {   // a troca encerra as sessões do dono: entra de novo com a senha nova
+        const r = await rpc('adm_login', {p_pin: novo});
+        if (!r || !r.length) return logout();
+        S.token = r[0].out_token; sessionStorage.setItem('bb_token', S.token);
+      }
+      msg.className = 'tag ok'; msg.textContent = 'Senha salva.';
+    }
+  } catch (ex) { if (!adminErr(ex)) alert(msgErro(ex)); }
+}
+
+route();
+</script>
+</body>
+</html>
