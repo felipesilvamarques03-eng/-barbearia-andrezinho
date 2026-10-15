@@ -16,8 +16,9 @@ h2{font-size:18px;margin-bottom:12px}
 .sub{color:var(--mut);text-align:center;margin:8px 0 32px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
 label{display:block;font-size:13px;color:var(--mut);margin:12px 0 6px}
-input{width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:#101013;color:var(--txt);font-size:16px;outline:none}
-input:focus{border-color:var(--gold)}
+input,textarea,select{width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:#101013;color:var(--txt);font-size:16px;outline:none;font-family:inherit}
+textarea{resize:vertical;line-height:1.5}
+input:focus,textarea:focus,select:focus{border-color:var(--gold)}
 button{cursor:pointer;border:0;border-radius:999px;padding:14px 22px;font-size:16px;font-weight:600;transition:.2s}
 .btn{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#111;width:100%;margin-top:18px}
 .btn:active{transform:scale(.98)}
@@ -69,15 +70,9 @@ button{cursor:pointer;border:0;border-radius:999px;padding:14px 22px;font-size:1
 <script>
 /* ============ CONFIGURAÇÃO (edite aqui) ============ */
 const CONFIG = {
-  SHOP_NAME: "Barbearia do Andrezinho",
-  MIN_POR_CLIENTE: 30,        // minutos médios por atendimento (estimativa de espera)
-  TOLERANCIA_MIN: 10,         // minutos de tolerância depois de chamar
-  // Serviços de EXEMPLO: ajuste nomes e preços. Ao finalizar, o barbeiro ainda pode digitar qualquer valor.
-  SERVICOS: [
-    { nome: "Corte", preco: 35 },
-    { nome: "Barba", preco: 25 },
-    { nome: "Corte + Barba", preco: 55 }
-  ],
+  // Barbearia aberta pelos links antigos, sem nome no endereço (/, /#/barbeiro, /#/dono).
+  // Nome, serviços, preços e tempos de cada barbearia ficam no banco: o dono ajusta na aba Ajustes.
+  PADRAO: "andrezinho",
   // Regras da aba Clientes (rotina): margem 1.25 = "atrasado" depois de 25% além do intervalo habitual;
   // sumido = 2 vezes o intervalo habitual; cicloMinimo evita alarme falso em quem vem a cada poucos dias.
   ROTINA: { margem: 1.25, sumido: 2, cicloMinimo: 7, novoAteDias: 45 },
@@ -103,7 +98,7 @@ const maskPhone = v => {
 const mmss = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
 const LS = {
   get(k, d){ try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
-  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
 function parseValor(s){
   s = String(s || '').trim().replace(/[R$\s]/g, '');
@@ -136,20 +131,70 @@ const ERROS = {
   so_dono: 'Só o dono pode fazer isso.',
   senha_repetida: 'Use uma senha diferente da outra.',
   senha_curta: 'Use pelo menos 6 caracteres.',
-  nao_encontrado: 'Esse cliente já não está mais na fila.'
+  nao_encontrado: 'Esse cliente já não está mais na fila.',
+  barbearia_nao_encontrada: 'Barbearia não encontrada ou desativada.',
+  barbearia_inativa: 'Esta barbearia está desativada.',
+  slug_invalido: 'Endereço inválido: use só letras sem acento, números e hífen (ex.: barbearia-do-joao).',
+  slug_em_uso: 'Esse endereço já está em uso. Escolha outro.',
+  servicos_invalidos: 'Confira os serviços: um por linha, no formato Nome = preço (ex.: Corte = 35).',
+  ajuste_invalido: 'Tempo por cliente: de 5 a 240 min. Tolerância: de 1 a 60 min.',
+  quem_invalido: 'Escolha dono ou barbeiro.',
+  senha_curta_plat: 'Use pelo menos 8 caracteres.'
 };
 const msgErro = e => ERROS[e && e.code] || 'Algo deu errado. Verifique a internet e tente de novo.';
 
 /* ---------- Rotas ---------- */
 let timers = [];
 const clearTimers = () => { timers.forEach(clearInterval); timers = []; };
-function route(){
+/* Endereços:
+   #/<barbearia>            cliente        #/<barbearia>/barbeiro   barbeiro
+   #/<barbearia>/dono       dono           #/plataforma             cadastro das barbearias
+   Links antigos (#/, #/barbeiro, #/admin, #/dono) abrem a barbearia CONFIG.PADRAO. */
+let SHOP = null;          // { slug, nome, servicos, min_por_cliente, tolerancia_min }
+let rotaAtual = 0;
+const AREAS = ['barbeiro', 'admin', 'dono'];
+function lerRota(){
+  const p = decodeURIComponent(location.hash.replace(/^#\/?/, '')).toLowerCase().split('/').filter(Boolean);
+  if (p[0] === 'plataforma') return { plat: true };
+  if (!p.length || AREAS.includes(p[0])) return { slug: CONFIG.PADRAO, area: p[0] || '' };
+  return { slug: p[0], area: p[1] || '' };
+}
+const linkBase = () => location.origin + location.pathname;
+const linkDe = (slug, area = '') => linkBase() + '#/' + slug + (area ? '/' + area : '');
+const tkKey = () => 'bb_ticket_' + SHOP.slug;
+
+async function carregarShop(slug){
+  const r = await rpc('info_barbearia', {p_slug: slug});
+  if (!r || !r.length) return null;
+  return { slug, ...r[0], servicos: Array.isArray(r[0].servicos) ? r[0].servicos : [] };
+}
+
+async function route(){
   clearTimers();
   $app.onclick = null; $modal.onclick = null; $modal.innerHTML = ''; $app.className = '';
-  const h = location.hash;
-  if (h.startsWith('#/dono')) return adminView('dono');
-  if (h.startsWith('#/barbeiro') || h.startsWith('#/admin')) return adminView('barbeiro');
-  const t = LS.get('bb_ticket', null);
+  const minha = ++rotaAtual, r = lerRota();
+  if (r.plat) { document.title = 'Plataforma · Fila da Barbearia'; return platView(); }
+  if (!SHOP || SHOP.slug !== r.slug) {
+    SHOP = null;
+    $app.innerHTML = '<div class="logo">💈</div><p class="sub">Carregando…</p>';
+    let s;
+    try { s = await carregarShop(r.slug); }
+    catch (e) {
+      if (minha !== rotaAtual) return;
+      $app.innerHTML = `<div class="logo">📶</div><h1>Sem conexão</h1><p class="sub">${esc(msgErro(e))}</p><button class="btn" id="tenta">Tentar de novo</button>`;
+      document.getElementById('tenta').onclick = route; return;
+    }
+    if (minha !== rotaAtual) return;
+    if (!s) {
+      $app.innerHTML = `<div class="logo">🔎</div><h1>Barbearia não encontrada</h1><p class="sub">Confira o link com a sua barbearia. Este endereço não existe ou foi desativado.</p>`;
+      return;
+    }
+    SHOP = s;
+  }
+  document.title = SHOP.nome;
+  if (r.area === 'dono') return adminView('dono');
+  if (r.area === 'barbeiro' || r.area === 'admin') return adminView('barbeiro');
+  const t = LS.get(tkKey(), null);
   if (t) return statusView(t);
   homeView();
 }
@@ -161,7 +206,7 @@ window.addEventListener('hashchange', route);
 function homeView(){
   $app.innerHTML = `
     <div class="logo">💈</div>
-    <h1>${esc(CONFIG.SHOP_NAME)}</h1>
+    <h1>${esc(SHOP.nome)}</h1>
     <p class="sub">Sem fila no balcão. Entre na lista e acompanhe pelo celular.</p>
     <button class="btn" id="go">Entrar na Fila / Agendar</button>`;
   document.getElementById('go').onclick = formView;
@@ -188,7 +233,7 @@ function formView(){
     hello.textContent = '';
     if (digits(tel.value).length === 11) {
       try {
-        const r = await rpc('buscar_cliente', {p_tel: digits(tel.value)});
+        const r = await rpc('buscar_cliente', {p_slug: SHOP.slug, p_tel: digits(tel.value)});
         if (r && r[0]) {
           nome.value = r[0].nome;
           hello.innerHTML = `👋 Bem-vindo de volta, <b>${esc(r[0].nome)}</b>! ${r[0].visitas || 0} visita(s)` +
@@ -204,9 +249,9 @@ function formView(){
     if (!/^\d{2}9\d{8}$/.test(t)) return err.textContent = ERROS.telefone_invalido;
     if (n.length < 2) return err.textContent = ERROS.nome_invalido;
     try {
-      const id = await rpc('entrar_fila', {p_tel: t, p_nome: n});
+      const id = await rpc('entrar_fila', {p_slug: SHOP.slug, p_tel: t, p_nome: n});
       const ticket = {id, tel: t, nome: n};
-      LS.set('bb_ticket', ticket);
+      LS.set(tkKey(), ticket);
       statusView(ticket);
     } catch (e) { err.textContent = msgErro(e); console.error(e); }
   };
@@ -215,20 +260,20 @@ function formView(){
 function statusView(ticket){
   const render = async () => {
     let fila;
-    try { fila = await rpc('fila_publica'); } catch { return; }
+    try { fila = await rpc('fila_publica', {p_slug: SHOP.slug}); } catch { return; }
     const idx = fila.findIndex(f => f.id === ticket.id);
     if (idx < 0) {
-      clearTimers(); LS.set('bb_ticket', null);
+      clearTimers(); LS.set(tkKey(), null);
       $app.innerHTML = `<div class="logo">✅</div><h1>Obrigado!</h1><p class="sub">Você saiu da fila. Quando quiser, é só voltar.</p><button class="btn" id="novo">Entrar novamente</button>`;
       document.getElementById('novo').onclick = homeView;
       return;
     }
-    const me = fila[idx], espera = idx * CONFIG.MIN_POR_CLIENTE;
+    const me = fila[idx], espera = idx * SHOP.min_por_cliente;
     $app.innerHTML = `
-      <h1>${esc(CONFIG.SHOP_NAME)}</h1>
+      <h1>${esc(SHOP.nome)}</h1>
       <p class="sub">Olá, ${esc(ticket.nome)}!</p>
       ${me.status === 'chamado'
-        ? `<div class="alert">🔔 É a sua vez! Compareça em até ${CONFIG.TOLERANCIA_MIN} minutos para não perder a vez.</div>`
+        ? `<div class="alert">🔔 É a sua vez! Compareça em até ${SHOP.tolerancia_min} minutos para não perder a vez.</div>`
         : `<div class="card center"><div class="mut">Sua posição</div><div class="big">${idx + 1}º</div>
            <p class="mut" style="margin-top:10px">${idx === 0 ? 'Você é o próximo!' : `Tempo estimado: ~${espera} min`}</p>
            <p class="mut">Entrada registrada às ${fmtTime(me.entrada)}</p></div>`}
@@ -240,7 +285,7 @@ function statusView(ticket){
       </div>
       <button class="btn ghost" id="sair">Sair da fila</button>`;
     document.getElementById('sair').onclick = async () => {
-      if (confirm('Deseja sair da fila?')) { try { await rpc('sair_fila', {p_id: ticket.id, p_tel: ticket.tel}); } catch {} render(); }
+      if (confirm('Deseja sair da fila?')) { try { await rpc('sair_fila', {p_slug: SHOP.slug, p_id: ticket.id, p_tel: ticket.tel}); } catch {} render(); }
     };
   };
   render();
@@ -340,18 +385,24 @@ function contagemClientes(lista){
    ===================================================================== */
 const S = { token: null, papel: null, need: 'barbeiro', tab: 'fila', fila: [], atend: [], busca: '' };
 const expirando = new Set();
-const restante = f => Math.max(0, CONFIG.TOLERANCIA_MIN * 60 - Math.floor((Date.now() - new Date(f.chamado_em)) / 1000));
-const tabsDisponiveis = () => S.papel === 'dono' ? ['fila', 'fat', 'cli', 'senhas'] : ['fila', 'fat', 'cli'];
-const ROTULO_TAB = { fila: 'Fila', fat: 'Faturamento', cli: 'Clientes', senhas: 'Senhas' };
+const restante = f => Math.max(0, SHOP.tolerancia_min * 60 - Math.floor((Date.now() - new Date(f.chamado_em)) / 1000));
+const tabsDisponiveis = () => S.papel === 'dono' ? ['fila', 'fat', 'cli', 'ajustes', 'senhas'] : ['fila', 'fat', 'cli'];
+const ROTULO_TAB = { fila: 'Fila', fat: 'Faturamento', cli: 'Clientes', ajustes: 'Ajustes', senhas: 'Senhas' };
+const SS = {
+  get(k){ try { return sessionStorage.getItem(k); } catch { return null; } },
+  set(k, v){ try { sessionStorage.setItem(k, v); } catch {} },
+  del(k){ try { sessionStorage.removeItem(k); } catch {} }
+};
+const tokKey = () => 'bb_token_' + SHOP.slug, papelKey = () => 'bb_papel_' + SHOP.slug;
 
 function adminErr(e){
-  if (e && (e.code === 'nao_autorizado')) { logout(); return true; }
+  if (e && (e.code === 'nao_autorizado' || e.code === 'barbearia_inativa')) { logout(); return true; }
   console.error(e); return false;
 }
 
 function adminView(need){
   S.need = need;
-  S.token = sessionStorage.getItem('bb_token'); S.papel = sessionStorage.getItem('bb_papel');
+  S.token = SS.get(tokKey()); S.papel = SS.get(papelKey());
   if (!S.token) return loginView();
   if (need === 'dono' && S.papel !== 'dono') return loginView('Esta área é só do dono.');
   startAdmin();
@@ -360,20 +411,20 @@ function adminView(need){
 function loginView(aviso = ''){
   $app.className = ''; $modal.innerHTML = '';
   $app.innerHTML = `<div class="logo">🔒</div><h1>${S.need === 'dono' ? 'Área do dono' : 'Área do barbeiro'}</h1>
-    <p class="sub">${esc(CONFIG.SHOP_NAME)}</p>
+    <p class="sub">${esc(SHOP.nome)}</p>
     <div class="card"><label>Senha</label><input id="pw" type="password" autocomplete="current-password">
     <div class="err" id="err">${esc(aviso)}</div><button class="btn" id="ok">Entrar</button></div>`;
   const go = async () => {
     const pw = document.getElementById('pw').value, err = document.getElementById('err');
     err.textContent = ''; if (!pw) return;
     try {
-      const r = await rpc('adm_login', {p_pin: pw});
+      const r = await rpc('adm_login', {p_slug: SHOP.slug, p_pin: pw});
       if (!r || !r.length) return err.textContent = 'Senha incorreta.';
       if (S.need === 'dono' && r[0].out_papel !== 'dono') {
         rpc('adm_sair', {p_token: r[0].out_token}).catch(() => {});
         return err.textContent = 'Esta área é só do dono.';
       }
-      sessionStorage.setItem('bb_token', r[0].out_token); sessionStorage.setItem('bb_papel', r[0].out_papel);
+      SS.set(tokKey(), r[0].out_token); SS.set(papelKey(), r[0].out_papel);
       adminView(S.need);
     } catch (e) { err.textContent = msgErro(e); }
   };
@@ -383,7 +434,7 @@ function loginView(aviso = ''){
 
 function logout(){
   const t = S.token;
-  sessionStorage.removeItem('bb_token'); sessionStorage.removeItem('bb_papel');
+  SS.del(tokKey()); SS.del(papelKey());
   S.token = null; S.papel = null; clearTimers(); $app.onclick = null; $modal.onclick = null; $modal.innerHTML = '';
   if (t) rpc('adm_sair', {p_token: t}).catch(() => {});
   loginView();
@@ -403,7 +454,7 @@ async function startAdmin(){
 
 function shell(){
   $app.innerHTML = `
-    <div class="row"><h2 style="margin:0">💈 ${esc(CONFIG.SHOP_NAME)}</h2>
+    <div class="row"><h2 style="margin:0">💈 ${esc(SHOP.nome)}</h2>
       <div><span class="tag">${S.papel === 'dono' ? 'Dono' : 'Barbeiro'}</span> <button class="btn ghost sm" data-a="logout">Sair</button></div></div>
     <div class="tabs">${tabsDisponiveis().map(t => `<button class="tab${S.tab === t ? ' on' : ''}" data-a="tab" data-t="${t}">${ROTULO_TAB[t]}</button>`).join('')}</div>
     <div id="tab"></div>`;
@@ -420,7 +471,7 @@ async function carregarAtend(){
 
 function renderTab(){
   const el = document.getElementById('tab'); if (!el) return;
-  const views = { fila: viewFila, fat: viewFat, cli: viewCli, senhas: viewSenhas };
+  const views = { fila: viewFila, fat: viewFat, cli: viewCli, ajustes: viewAjustes, senhas: viewSenhas };
   el.innerHTML = (views[S.tab] || viewFila)();
   if (S.tab === 'cli') renderCliLista();
 }
@@ -443,7 +494,7 @@ function viewFila(){
   const r = resumoFaturamento(S.atend);
   return `<div class="card center"><div class="mut">Hoje</div><div class="kbig">${brl(r.hoje.total)}</div>
       <div class="mut">${r.hoje.qtd} atendimento(s) finalizado(s)</div></div>
-    <p class="mut" style="margin-bottom:10px">Link do cliente: ${esc(location.origin + location.pathname)}</p>
+    <p class="mut" style="margin-bottom:10px;word-break:break-all">Link do cliente: ${esc(linkDe(SHOP.slug))}</p>
     <div class="card">${S.fila.length ? S.fila.map(itemFila).join('') : '<p class="mut center">Ninguém na fila.</p>'}</div>`;
 }
 function itemFila(f, i){
@@ -462,7 +513,7 @@ function abrirFinalizar(f){
   $modal.innerHTML = `<div class="ov"><div class="sheet">
     <h2>Finalizar ${esc(f.nome)}</h2>
     <p class="mut">Escolha o serviço ou digite o valor cobrado.</p>
-    <div class="chips">${CONFIG.SERVICOS.map((s, i) => `<button class="chip" data-a="svc" data-i="${i}">${esc(s.nome)} · ${brl(s.preco)}</button>`).join('')}</div>
+    <div class="chips">${SHOP.servicos.map((s, i) => `<button class="chip" data-a="svc" data-i="${i}">${esc(s.nome)} · ${brl(s.preco)}</button>`).join('')}</div>
     <label>Serviço</label><input id="f-serv" placeholder="Ex.: Corte">
     <label>Valor (R$)</label><input id="f-val" inputmode="decimal" placeholder="0,00">
     <div class="err" id="f-err"></div>
@@ -474,7 +525,7 @@ async function onModalClick(e){
   const a = b.dataset.a;
   if (a === 'fcancel') { $modal.innerHTML = ''; return; }
   if (a === 'svc') {
-    const s = CONFIG.SERVICOS[Number(b.dataset.i)];
+    const s = SHOP.servicos[Number(b.dataset.i)]; if (!s) return;
     document.getElementById('f-serv').value = s.nome;
     document.getElementById('f-val').value = String(s.preco).replace('.', ',');
     return;
@@ -535,7 +586,7 @@ function viewCli(){
     </div>
     <input id="busca" placeholder="Buscar por nome ou telefone" value="${esc(S.busca)}" oninput="S.busca=this.value.toLowerCase();renderCliLista()">
     <div class="card" style="margin-top:14px" id="clilist"></div>
-    <p class="mut">Intervalo habitual = média de dias entre as visitas do próprio cliente (precisa de 2 visitas). Estas regras são estimativas e podem ser ajustadas em ROTINA, no início do arquivo.</p>`;
+    <p class="mut">Intervalo habitual = média de dias entre as visitas do próprio cliente (precisa de 2 visitas). Estas regras são estimativas.</p>`;
 }
 function renderCliLista(){
   const el = document.getElementById('clilist'); if (!el) return;
@@ -560,6 +611,32 @@ function viewSenhas(){
     <p class="mut">Ao trocar a senha do barbeiro, ele precisa entrar de novo. As duas senhas devem ser diferentes.</p>`;
 }
 
+/* ---------- Aba Ajustes (só o dono) ---------- */
+const servicosTexto = lista => lista.map(s => `${s.nome} = ${String(s.preco).replace('.', ',')}`).join('\n');
+function lerServicos(txt){
+  const out = [];
+  for (const linha of String(txt || '').split('\n')) {
+    if (!linha.trim()) continue;
+    const m = linha.match(/^(.+?)\s*[=:]\s*(?:R\$\s*)?([\d.,]+)\s*$/i);
+    if (!m) return null;
+    const preco = parseValor(m[2]), nome = m[1].trim();
+    if (preco === null || preco > 10000 || !nome || nome.length > 40) return null;
+    out.push({ nome, preco });
+  }
+  return out.length && out.length <= 20 ? out : null;
+}
+function viewAjustes(){
+  return `<div class="card"><h2>Sua barbearia</h2>
+      <label for="aj-nome">Nome que aparece para os clientes</label><input id="aj-nome" value="${esc(SHOP.nome)}" maxlength="60">
+      <label for="aj-serv">Serviços e preços (um por linha: Nome = preço)</label>
+      <textarea id="aj-serv" rows="6">${esc(servicosTexto(SHOP.servicos))}</textarea>
+      <label for="aj-min">Minutos por cliente (para calcular a espera)</label><input id="aj-min" inputmode="numeric" value="${SHOP.min_por_cliente}">
+      <label for="aj-tol">Tolerância depois de chamar (minutos)</label><input id="aj-tol" inputmode="numeric" value="${SHOP.tolerancia_min}">
+      <div class="err" id="aj-msg"></div>
+      <button class="btn" data-a="salvar-aj">Salvar ajustes</button></div>
+    <p class="mut" style="word-break:break-all">Link do cliente: ${esc(linkDe(SHOP.slug))}<br>Link do barbeiro: ${esc(linkDe(SHOP.slug, 'barbeiro'))}<br>Seu link (dono): ${esc(linkDe(SHOP.slug, 'dono'))}</p>`;
+}
+
 /* ---------- Cliques da área restrita ---------- */
 async function onAdminClick(e){
   const b = e.target.closest('[data-a]'); if (!b) return;
@@ -569,14 +646,14 @@ async function onAdminClick(e){
     if (a === 'logout') return logout();
     if (a === 'chamar') {
       const f = S.fila.find(x => x.id === id); if (!f) return;
-      const msg = `Fala ${f.nome}! 💈 Chegou a sua vez aqui na ${CONFIG.SHOP_NAME}. Por favor, compareça à cadeira em até ${CONFIG.TOLERANCIA_MIN} minutos para não perder a vez.`;
+      const msg = `Fala ${f.nome}! 💈 Chegou a sua vez aqui na ${SHOP.nome}. Por favor, compareça à cadeira em até ${SHOP.tolerancia_min} minutos para não perder a vez.`;
       window.open(`https://wa.me/55${f.telefone}?text=${encodeURIComponent(msg)}`, '_blank');
       await rpc('adm_chamar', {p_token: S.token, p_id: id}); return carregarFila();
     }
     if (a === 'remover') { await rpc('adm_remover', {p_token: S.token, p_id: id}); return carregarFila(); }
     if (a === 'finalizar') { const f = S.fila.find(x => x.id === id); if (f) abrirFinalizar(f); return; }
     if (a === 'voltar') {
-      const msg = `Fala ${b.dataset.nome}! 💈 Faz um tempinho que você não passa aqui na ${CONFIG.SHOP_NAME}. Bora cuidar do visual? Me chama que eu encaixo você.`;
+      const msg = `Fala ${b.dataset.nome}! 💈 Faz um tempinho que você não passa aqui na ${SHOP.nome}. Bora cuidar do visual? Me chama que eu encaixo você.`;
       window.open(`https://wa.me/55${b.dataset.tel}?text=${encodeURIComponent(msg)}`, '_blank'); return;
     }
     if (a === 'edval') {
@@ -599,13 +676,157 @@ async function onAdminClick(e){
       await rpc('dono_trocar_pin', {p_token: S.token, p_quem: quem, p_novo: novo});
       inp.value = '';
       if (quem === 'dono') {   // a troca encerra as sessões do dono: entra de novo com a senha nova
-        const r = await rpc('adm_login', {p_pin: novo});
+        const r = await rpc('adm_login', {p_slug: SHOP.slug, p_pin: novo});
         if (!r || !r.length) return logout();
-        S.token = r[0].out_token; sessionStorage.setItem('bb_token', S.token);
+        S.token = r[0].out_token; SS.set(tokKey(), S.token);
       }
       msg.className = 'tag ok'; msg.textContent = 'Senha salva.';
     }
+    if (a === 'salvar-aj') {
+      const msg = document.getElementById('aj-msg'); msg.className = 'err'; msg.textContent = '';
+      const nome = document.getElementById('aj-nome').value.trim();
+      const serv = lerServicos(document.getElementById('aj-serv').value);
+      const min = parseInt(document.getElementById('aj-min').value, 10), tol = parseInt(document.getElementById('aj-tol').value, 10);
+      if (nome.length < 2) return msg.textContent = 'Informe o nome da barbearia.';
+      if (!serv) return msg.textContent = ERROS.servicos_invalidos;
+      if (!(min >= 5 && min <= 240) || !(tol >= 1 && tol <= 60)) return msg.textContent = ERROS.ajuste_invalido;
+      await rpc('dono_ajustes', {p_token: S.token, p_nome: nome, p_servicos: serv, p_min: min, p_tol: tol});
+      SHOP = { ...SHOP, nome, servicos: serv, min_por_cliente: min, tolerancia_min: tol };
+      document.title = SHOP.nome; shell(); renderTab();
+      const m2 = document.getElementById('aj-msg'); m2.className = 'tag ok'; m2.textContent = 'Ajustes salvos.';
+    }
   } catch (ex) { if (!adminErr(ex)) alert(msgErro(ex)); }
+}
+
+/* =====================================================================
+   PLATAFORMA (cadastro das barbearias)
+   ===================================================================== */
+const P = { token: null, lista: [], criada: null };
+const slugify = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/g, '');
+
+function platErr(e){
+  if (e && e.code === 'nao_autorizado') { SS.del('bb_plat'); P.token = null; platLogin('Sua sessão expirou. Entre de novo.'); return true; }
+  console.error(e); return false;
+}
+
+function platView(){
+  P.token = SS.get('bb_plat');
+  if (!P.token) return platLogin();
+  platPainel();
+}
+
+function platLogin(aviso = ''){
+  $app.className = ''; $app.onclick = null;
+  $app.innerHTML = `<div class="logo">🗂️</div><h1>Plataforma</h1>
+    <p class="sub">Cadastro e controle das barbearias</p>
+    <div class="card"><label for="ppw">Senha da plataforma</label><input id="ppw" type="password" autocomplete="current-password">
+    <div class="err" id="err">${esc(aviso)}</div><button class="btn" id="ok">Entrar</button></div>`;
+  const go = async () => {
+    const pw = document.getElementById('ppw').value, err = document.getElementById('err');
+    err.textContent = ''; if (!pw) return;
+    try {
+      const t = await rpc('plat_login', {p_pin: pw});
+      if (!t) return err.textContent = 'Senha incorreta.';
+      SS.set('bb_plat', t); P.token = t; platPainel();
+    } catch (e) { err.textContent = msgErro(e); }
+  };
+  document.getElementById('ok').onclick = go;
+  document.getElementById('ppw').addEventListener('keydown', e => e.key === 'Enter' && go());
+}
+
+async function platPainel(){
+  $app.className = 'wide';
+  $app.innerHTML = '<p class="sub">Carregando…</p>';
+  try { P.lista = await rpc('plat_listar', {p_token: P.token}) || []; }
+  catch (e) { if (!platErr(e)) $app.innerHTML = `<p class="err">${esc(msgErro(e))}</p>`; return; }
+  const ativas = P.lista.filter(b => b.ativo).length;
+  $app.innerHTML = `
+    <div class="row"><h2 style="margin:0">🗂️ Plataforma</h2><button class="btn ghost sm" data-p="sair">Sair</button></div>
+    <p class="mut" style="margin:6px 0 14px">${P.lista.length} barbearia(s) · ${ativas} ativa(s)</p>
+    ${P.criada ? `<div class="alert" style="text-align:left;word-break:break-all">Barbearia criada! Envie estes links ao dono:<br><br>
+        Clientes: ${esc(linkDe(P.criada))}<br>Barbeiro: ${esc(linkDe(P.criada, 'barbeiro'))}<br>Dono: ${esc(linkDe(P.criada, 'dono'))}<br><br>
+        Peça para ele trocar as senhas na aba Senhas e ajustar serviços e preços na aba Ajustes.</div><br>` : ''}
+    <div class="card"><h2>Barbearias</h2>
+      ${P.lista.length ? P.lista.map(b => `<div class="item"><div class="grow">
+          <div class="name">${esc(b.nome)} <span class="tag ${b.ativo ? 'ok' : 'bad'}">${b.ativo ? 'Ativa' : 'Desativada'}</span></div>
+          <div class="mut" style="word-break:break-all">${esc(linkDe(b.slug))}</div>
+          <div class="mut">${b.clientes} cliente(s) · ${b.atendimentos_30d} atendimento(s) nos últimos 30 dias${b.ultimo_atendimento ? ` · último em ${new Date(b.ultimo_atendimento).toLocaleDateString('pt-BR')}` : ''}</div>
+          <div class="actions">
+            <button class="btn ghost sm" data-p="senha" data-id="${b.id}" data-quem="dono">Nova senha do dono</button>
+            <button class="btn ghost sm" data-p="senha" data-id="${b.id}" data-quem="barbeiro">Nova senha do barbeiro</button>
+            <button class="${b.ativo ? 'red' : 'green'} sm" data-p="ativo" data-id="${b.id}" data-v="${b.ativo ? '0' : '1'}">${b.ativo ? 'Desativar' : 'Reativar'}</button>
+          </div></div></div>`).join('') : '<p class="mut">Nenhuma barbearia ainda.</p>'}
+      <div class="err" id="lista-msg"></div></div>
+    <div class="card"><h2>Nova barbearia</h2>
+      <label for="n-nome">Nome da barbearia</label><input id="n-nome" maxlength="60" placeholder="Ex.: Barbearia do João">
+      <label for="n-slug">Endereço no link (sem acento e sem espaço)</label><input id="n-slug" maxlength="40" placeholder="barbearia-do-joao" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <p class="mut" id="n-prev" style="margin-top:6px;word-break:break-all"></p>
+      <label for="n-pd">Senha inicial do dono (mínimo 6)</label><input id="n-pd" autocomplete="off">
+      <label for="n-pb">Senha inicial do barbeiro (mínimo 6, diferente da do dono)</label><input id="n-pb" autocomplete="off">
+      <div class="err" id="n-err"></div>
+      <button class="btn" data-p="criar">Criar barbearia</button></div>
+    <div class="card"><h2>Senha da plataforma</h2>
+      <label for="np-plat">Nova senha (mínimo 8 caracteres)</label><input id="np-plat" type="password" autocomplete="new-password">
+      <div class="err" id="plat-msg"></div>
+      <button class="btn sm" style="margin-top:12px" data-p="trocar">Salvar</button></div>`;
+  const nome = document.getElementById('n-nome'), slug = document.getElementById('n-slug'), prev = document.getElementById('n-prev');
+  let slugManual = false;
+  const mostrar = () => prev.textContent = slug.value ? 'Link: ' + linkDe(slug.value) : '';
+  nome.addEventListener('input', () => { if (!slugManual) { slug.value = slugify(nome.value); mostrar(); } });
+  slug.addEventListener('input', () => { slugManual = true; slug.value = slugify(slug.value) + (slug.value.endsWith('-') ? '-' : ''); mostrar(); });
+  $app.onclick = onPlatClick;
+}
+
+async function onPlatClick(e){
+  const b = e.target.closest('[data-p]'); if (!b) return;
+  const a = b.dataset.p;
+  try {
+    if (a === 'sair') { SS.del('bb_plat'); P.token = null; P.criada = null; return platLogin(); }
+    if (a === 'criar') {
+      const err = document.getElementById('n-err'); err.textContent = '';
+      const nome = document.getElementById('n-nome').value.trim(), slug = slugify(document.getElementById('n-slug').value);
+      const pd = document.getElementById('n-pd').value, pb = document.getElementById('n-pb').value;
+      if (nome.length < 2) return err.textContent = 'Informe o nome da barbearia.';
+      if (!slug) return err.textContent = ERROS.slug_invalido;
+      if (pd.length < 6 || pb.length < 6) return err.textContent = ERROS.senha_curta;
+      if (pd === pb) return err.textContent = ERROS.senha_repetida;
+      try { await rpc('plat_criar', {p_token: P.token, p_slug: slug, p_nome: nome, p_pin_dono: pd, p_pin_barbeiro: pb}); }
+      catch (ex) { if (!platErr(ex)) err.textContent = msgErro(ex); return; }
+      P.criada = slug; window.scrollTo(0, 0); return platPainel();
+    }
+    if (a === 'ativo') {
+      const id = Number(b.dataset.id), ativar = b.dataset.v === '1', item = P.lista.find(x => x.id === id);
+      if (!ativar && !confirm(`Desativar "${item ? item.nome : ''}"? Clientes e barbeiro deixam de acessar até você reativar. Os dados ficam guardados.`)) return;
+      await rpc('plat_ativar', {p_token: P.token, p_id: id, p_ativo: ativar});
+      return platPainel();
+    }
+    if (a === 'senha') {
+      const id = Number(b.dataset.id), quem = b.dataset.quem, item = P.lista.find(x => x.id === id);
+      const novo = prompt(`Nova senha do ${quem} de "${item ? item.nome : ''}" (mínimo 6 caracteres):`);
+      if (novo === null) return;
+      const msg = document.getElementById('lista-msg'); msg.className = 'err'; msg.textContent = '';
+      if (novo.length < 6) return msg.textContent = ERROS.senha_curta;
+      await rpc('plat_redefinir', {p_token: P.token, p_id: id, p_quem: quem, p_novo: novo});
+      msg.className = 'tag ok'; msg.textContent = `Senha do ${quem} trocada. Avise a pessoa.`;
+      return;
+    }
+    if (a === 'trocar') {
+      const inp = document.getElementById('np-plat'), msg = document.getElementById('plat-msg');
+      msg.className = 'err'; msg.textContent = '';
+      if (inp.value.length < 8) return msg.textContent = ERROS.senha_curta_plat;
+      const novo = inp.value;
+      await rpc('plat_trocar_senha', {p_token: P.token, p_novo: novo});
+      const t = await rpc('plat_login', {p_pin: novo});
+      if (!t) { SS.del('bb_plat'); return platLogin(); }
+      P.token = t; SS.set('bb_plat', t); inp.value = '';
+      msg.className = 'tag ok'; msg.textContent = 'Senha da plataforma salva.';
+    }
+  } catch (ex) {
+    if (platErr(ex)) return;
+    const msg = document.getElementById('lista-msg');
+    if (msg) { msg.className = 'err'; msg.textContent = msgErro(ex); } else alert(msgErro(ex));
+  }
 }
 
 route();
