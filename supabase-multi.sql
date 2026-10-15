@@ -787,7 +787,7 @@ returns void language plpgsql security definer set search_path = public, extensi
 declare v_slug text := lower(btrim(coalesce(p_slug, '')));
 begin
   perform _exigir_plat(p_token);
-  if v_slug !~ '^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$' or v_slug in ('plataforma','barbeiro','dono','admin','entrar') then
+  if v_slug !~ '^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$' or v_slug in ('plataforma','barbeiro','dono','admin','entrar','planos') then
     raise exception 'slug_invalido';
   end if;
   if exists (select 1 from barbearias where slug = v_slug) then raise exception 'slug_em_uso'; end if;
@@ -1212,3 +1212,57 @@ end $$;
 
 revoke execute on function ia_barbearias() from public, anon, authenticated, service_role;
 revoke execute on function ia_aplicar(text, jsonb, text) from public, anon, authenticated, service_role;
+
+
+-- =====================================================================
+-- CADASTRO PELO PRÓPRIO BARBEIRO (página pública de planos: #/planos)
+-- Cria a barbearia com 2 dias grátis. Guarda o aceite da política de privacidade.
+-- Limite: 20 cadastros por hora no total, para evitar abuso.
+-- =====================================================================
+alter table barbearias
+  add column if not exists origem text not null default 'plataforma' check (origem in ('plataforma','autocadastro')),
+  add column if not exists aceite_privacidade_em timestamptz;
+
+create or replace function cadastro_publico(p jsonb)
+returns table (slug text, token text)
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  v_nome text := btrim(coalesce(p->>'nome_barbearia', ''));
+  v_base text; v_slug text; v_i int := 1;
+  v_resp text := btrim(coalesce(p->>'resp_nome', ''));
+  v_tel text := regexp_replace(coalesce(p->>'resp_telefone', ''), '\D', '', 'g');
+  v_email text := lower(btrim(coalesce(p->>'resp_email', '')));
+  v_plano text := coalesce(p->>'plano', 'pro');
+  v_pd text := p->>'senha_dono'; v_pb text := p->>'senha_barbeiro';
+  v_cidade text := nullif(btrim(coalesce(p->>'cidade', '')), '');
+  v_id bigint;
+begin
+  if coalesce((p->>'aceite')::boolean, false) is not true then raise exception 'aceite_obrigatorio'; end if;
+  if (select count(*) from barbearias where origem = 'autocadastro' and criado_em > now() - interval '1 hour') >= 20 then
+    raise exception 'muitos_cadastros';
+  end if;
+  if length(v_nome) not between 2 and 60 then raise exception 'nome_invalido'; end if;
+  if length(v_resp) < 5 or position(' ' in v_resp) = 0 then raise exception 'nome_completo'; end if;
+  if v_tel !~ '^\d{10,11}$' then raise exception 'telefone_invalido'; end if;
+  if v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'email_invalido'; end if;
+  if not exists (select 1 from planos where codigo = v_plano) then raise exception 'plano_invalido'; end if;
+  if coalesce(length(v_pd), 0) not between 6 and 64 or coalesce(length(v_pb), 0) not between 6 and 64 then raise exception 'senha_curta'; end if;
+  if v_pd = v_pb then raise exception 'senha_repetida'; end if;
+  if v_cidade is not null and length(v_cidade) > 40 then raise exception 'cidade_invalida'; end if;
+  -- endereço do link a partir do nome, sem acento; se já existir, acrescenta -2, -3...
+  v_base := trim(both '-' from regexp_replace(lower(translate(v_nome,
+    'áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ', 'aaaaaeeeeiiiiooooouuuucnaaaaaeeeeiiiiooooouuuucn')), '[^a-z0-9]+', '-', 'g'));
+  v_base := left(v_base, 34);
+  if v_base = '' or v_base in ('plataforma','barbeiro','dono','admin','entrar','planos') then v_base := 'barbearia'; end if;
+  v_slug := v_base;
+  while exists (select 1 from barbearias b where b.slug = v_slug) loop v_i := v_i + 1; v_slug := v_base || '-' || v_i; end loop;
+  insert into barbearias (slug, nome, pin_dono, pin_barbeiro, plano, teste_ate, servicos, cidade,
+                          resp_nome, resp_telefone, resp_email, resp_atualizado_em, origem, aceite_privacidade_em)
+  values (v_slug, v_nome, crypt(v_pd, gen_salt('bf')), crypt(v_pb, gen_salt('bf')), v_plano, now() + interval '2 days',
+          coalesce((select valor::jsonb from config where chave = 'servicos_padrao'),
+                   '[{"nome":"Corte","preco":35},{"nome":"Barba","preco":25},{"nome":"Corte + Barba","preco":55}]'::jsonb),
+          coalesce(v_cidade, 'Rio de Janeiro'), v_resp, v_tel, v_email, now(), 'autocadastro', now())
+  returning id into v_id;
+  perform _lgpd_log('cadastro feito pelo próprio titular (aceitou a política de privacidade)', v_id, 'autocadastro');
+  return query select v_slug, _novo_token('dono', v_id);
+end $$;

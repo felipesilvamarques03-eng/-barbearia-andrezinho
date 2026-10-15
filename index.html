@@ -79,6 +79,19 @@ button{cursor:pointer;border:0;border-radius:999px;padding:14px 22px;font-size:1
 .chk{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px;color:var(--txt)}
 .chk input{width:auto;margin-top:3px}
 .neg{color:var(--red)}.pos{color:var(--green)}
+.link-box{background:linear-gradient(135deg,rgba(201,162,75,.16),rgba(201,162,75,.05));border:1px solid var(--gold);border-radius:16px;padding:14px;margin:12px 0}
+.link-box b{display:block;font-size:15px;margin-bottom:2px}
+.link-box .mut{font-size:13px}
+.link-url{font-family:ui-monospace,Menlo,monospace;font-size:13px;background:#101013;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;word-break:break-all;user-select:all}
+.link-acoes{display:flex;gap:8px;flex-wrap:wrap}
+.link-acoes a,.link-acoes button{flex:1 1 140px;text-align:center;text-decoration:none;border-radius:999px;padding:10px 14px;font-size:14px;font-weight:600}
+.planos-pub{display:grid;gap:12px;margin:16px 0}
+.plano-pub{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:16px;cursor:pointer;text-align:left;color:var(--txt);width:100%}
+.plano-pub.on{border-color:var(--gold);background:rgba(201,162,75,.08)}
+.plano-pub ul{margin:8px 0 0 18px;color:var(--mut);font-size:14px;line-height:1.6}
+details.priv{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px;font-size:13px;color:var(--mut);line-height:1.5}
+details.priv summary{cursor:pointer;color:var(--txt);font-weight:600}
+details.priv p{margin-top:8px}
 </style>
 </head>
 <body>
@@ -1487,7 +1500,10 @@ const ERROS = {
   email_invalido: 'Informe um e-mail válido.',
   mp_nao_configurado: 'O pagamento online ainda não foi ativado. Fale com o suporte.',
   mp_recusou: 'O Mercado Pago recusou o pedido. Tente de novo em instantes.',
-  sem_assinatura: 'Não há assinatura ativa para cancelar.'
+  sem_assinatura: 'Não há assinatura ativa para cancelar.',
+  aceite_obrigatorio: 'Para cadastrar, leia e aceite a política de privacidade.',
+  muitos_cadastros: 'Muitos cadastros agora. Tente de novo em alguns minutos.',
+  telefone_invalido_resp: 'WhatsApp inválido: use DDD + número.'
 };
 const msgErro = e => ERROS[e && e.code] || 'Algo deu errado. Verifique a internet e tente de novo.';
 
@@ -1505,6 +1521,7 @@ function lerRota(){
   const p = decodeURIComponent(location.hash.replace(/^#\/?/, '')).toLowerCase().split('/').filter(Boolean);
   if (p[0] === 'plataforma') return { plat: true };
   if (p[0] === 'entrar') return { entrar: true };
+  if (p[0] === 'planos') return { planos: true };
   if (!p.length || AREAS.includes(p[0])) return { slug: CONFIG.PADRAO, area: p[0] || '' };
   return { slug: p[0], area: p[1] || '' };
 }
@@ -1524,6 +1541,7 @@ async function route(){
   const minha = ++rotaAtual, r = lerRota();
   if (r.plat) { document.title = 'Plataforma · Fila da Barbearia'; return platView(); }
   if (r.entrar) { document.title = 'Entrar · Fila da Barbearia'; return entrarView(); }
+  if (r.planos) { document.title = 'Planos · Fila da Barbearia'; return planosView(); }
   if (!SHOP || SHOP.slug !== r.slug) {
     SHOP = null;
     $app.innerHTML = '<div class="logo">💈</div><p class="sub">Carregando…</p>';
@@ -1904,6 +1922,8 @@ function shell(){
     <div class="row"><h2 style="margin:0">💈 ${esc(SHOP.nome)}</h2>
       <div><span class="tag">${S.papel === 'dono' ? 'Dono' : 'Barbeiro'} · ${NOME_PLANO[S.conta.plano] || ''}</span> <button class="btn ghost sm" data-a="logout">Sair</button></div></div>
     ${bannerConta()}
+    ${caixaLink('Link para os seus clientes', linkDe(SHOP.slug), 'Divulgue no WhatsApp, Instagram e no balcão. O cliente entra na fila sem cadastro.',
+      `Entre na fila da ${SHOP.nome} pelo celular, sem esperar no balcão: ${linkDe(SHOP.slug)}`)}
     <div class="tabs">${tabsDisponiveis().map(t => `<button class="tab${S.tab === t ? ' on' : ''}" data-a="tab" data-t="${t}">${ROTULO_TAB[t]}</button>`).join('')}</div>
     <div id="tab"></div>`;
 }
@@ -1952,7 +1972,6 @@ function viewFila(){
   const r = resumoFaturamento(S.atend);
   return `${nivel() >= 2 ? `<div class="card center"><div class="mut">Hoje</div><div class="kbig">${brl(r.hoje.total)}</div>
       <div class="mut">${r.hoje.qtd} atendimento(s) finalizado(s)</div></div>` : ''}
-    <p class="mut" style="margin-bottom:10px;word-break:break-all">Link do cliente: ${esc(linkDe(SHOP.slug))}</p>
     <div class="card">${S.fila.length ? S.fila.map(itemFila).join('') : '<p class="mut center">Ninguém na fila.</p>'}</div>`;
 }
 function itemFila(f, i){
@@ -2481,6 +2500,88 @@ async function onAdminClick(e){
   } catch (ex) { if (!adminErr(ex)) alert(msgErro(ex)); }
 }
 
+/* ---------- Quadro de link para copiar e enviar ---------- */
+function caixaLink(titulo, url, explica, msgWhats){
+  return `<div class="link-box"><b>${esc(titulo)}</b><div class="mut">${esc(explica)}</div>
+    <div class="link-url">${esc(url)}</div>
+    <div class="link-acoes"><button class="btn sm" style="margin:0" data-copiar="${esc(url)}">Copiar link</button>
+      <a class="green" href="https://wa.me/?text=${encodeURIComponent(msgWhats || url)}" target="_blank" rel="noopener">Enviar no WhatsApp</a></div></div>`;
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-copiar]'); if (!b) return;
+  e.stopPropagation();
+  const url = b.dataset.copiar, antes = b.textContent;
+  try { await navigator.clipboard.writeText(url); b.textContent = 'Copiado!'; }
+  catch { const box = b.closest('.link-box, .item'); const el = box && box.querySelector('.link-url, .mut');
+    if (el) { const r = document.createRange(); r.selectNodeContents(el); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); }
+    b.textContent = 'Selecionado: copie'; }
+  setTimeout(() => { b.textContent = antes; }, 2000);
+}, true);
+
+/* =====================================================================
+   PLANOS: página pública de venda e cadastro da barbearia
+   ===================================================================== */
+const PUB = { plano: 'pro', planos: [] };
+async function planosView(){
+  $app.className = ''; $app.onclick = null;
+  $app.innerHTML = '<div class="logo">💈</div><p class="sub">Carregando os planos…</p>';
+  try { PUB.planos = await rpc('planos_lista') || []; } catch (e) { $app.innerHTML = `<p class="err">${esc(msgErro(e))}</p>`; return; }
+  const RECS = {
+    basic: ['Fila online pelo celular, sem app', 'Chamada pelo WhatsApp com mensagem pronta', 'QR Code Pix no fim do corte'],
+    pro: ['Tudo do Basic', 'Faturamento do dia, semana e mês', 'Rotina dos clientes e "chamar de volta"', 'Barbeiros por comissão, aluguel de cadeira ou salário'],
+    expert: ['Tudo do Pro', 'Despesas da barbearia', 'Relatórios mensais e anuais com lucro', 'Acerto de cada profissional'] };
+  $app.innerHTML = `<div class="logo">💈</div><h1>Fila online para sua barbearia</h1>
+    <p class="sub">Seu cliente entra na fila pelo celular e você chama pelo WhatsApp. Teste grátis por 2 dias, sem cartão.</p>
+    <div class="planos-pub">${PUB.planos.map(p => `<button type="button" class="plano-pub${p.codigo === PUB.plano ? ' on' : ''}" data-plano="${p.codigo}">
+      <div class="row"><b style="font-size:18px">${esc(p.nome)}</b><span class="preco">${brl(p.preco)}<small class="mut">/mês</small></span></div>
+      <ul>${(RECS[p.codigo] || []).map(x => `<li>${x}</li>`).join('')}</ul></button>`).join('')}</div>
+    <div class="card"><h2>Cadastre sua barbearia</h2>
+      <label for="c-nome">Nome da barbearia</label><input id="c-nome" maxlength="60" placeholder="Ex.: Barbearia do João">
+      <label for="c-cidade">Cidade</label><input id="c-cidade" maxlength="40" placeholder="Ex.: Rio de Janeiro">
+      <label for="c-resp">Seu nome completo</label><input id="c-resp" maxlength="100" autocomplete="name">
+      <label for="c-tel">Seu WhatsApp</label><input id="c-tel" inputmode="numeric" placeholder="(21) 99999-9999" autocomplete="tel">
+      <label for="c-email">Seu e-mail</label><input id="c-email" type="email" autocomplete="email">
+      <label for="c-pd">Crie a senha do dono (mínimo 6)</label><input id="c-pd" type="password" autocomplete="new-password">
+      <label for="c-pb">Crie a senha do barbeiro (mínimo 6, diferente)</label><input id="c-pb" type="password" autocomplete="new-password">
+      <details class="priv"><summary>Política de privacidade (resumo)</summary>
+        <p><b>Quais dados:</b> nome da barbearia, cidade, seu nome, WhatsApp e e-mail. As senhas são guardadas embaralhadas e ninguém consegue lê-las.</p>
+        <p><b>Para quê:</b> criar e manter a sua conta, falar com você sobre a assinatura e cobrar a mensalidade. Base legal: execução de contrato (Lei 13.709/2018, art. 7º, V).</p>
+        <p><b>Quem vê:</b> só o administrador da plataforma, com os dados mascarados e cada acesso registrado. Não vendemos nem repassamos seus dados. O pagamento é feito no Mercado Pago, que trata os dados do cartão.</p>
+        <p><b>Clientes e barbeiros da sua barbearia:</b> você decide sobre esses dados; a plataforma só os guarda para você usar o sistema.</p>
+        <p><b>Seus direitos (art. 18):</b> confirmar, acessar, corrigir, levar a outro serviço ou pedir a eliminação dos seus dados, pelo mesmo canal em que contratou.</p>
+      </details>
+      <label class="chk"><input type="checkbox" id="c-aceite"> Li e aceito a política de privacidade.</label>
+      <div class="err" id="c-err"></div>
+      <button class="btn" id="c-ok">Começar teste grátis de 2 dias</button></div>
+    <p class="center" style="margin-top:20px"><a href="#/entrar" style="color:var(--mut)">Já tenho conta · Entrar</a></p>`;
+  $app.querySelectorAll('[data-plano]').forEach(b => b.onclick = () => {
+    PUB.plano = b.dataset.plano; $app.querySelectorAll('[data-plano]').forEach(x => x.classList.toggle('on', x === b)); });
+  const tel = document.getElementById('c-tel'); tel.oninput = () => { tel.value = maskPhone(tel.value); };
+  document.getElementById('c-ok').onclick = async () => {
+    const g = id => document.getElementById(id), err = g('c-err'), btn = g('c-ok'); err.textContent = '';
+    const d = { nome_barbearia: g('c-nome').value.trim(), cidade: g('c-cidade').value.trim(), resp_nome: g('c-resp').value.trim(),
+      resp_telefone: digits(g('c-tel').value), resp_email: g('c-email').value.trim(), plano: PUB.plano,
+      senha_dono: g('c-pd').value, senha_barbeiro: g('c-pb').value, aceite: g('c-aceite').checked };
+    if (d.nome_barbearia.length < 2) return err.textContent = 'Informe o nome da barbearia.';
+    if (d.resp_nome.split(/\s+/).length < 2) return err.textContent = ERROS.nome_completo;
+    if (!/^\d{10,11}$/.test(d.resp_telefone)) return err.textContent = ERROS.telefone_invalido_resp;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.resp_email)) return err.textContent = ERROS.email_invalido;
+    if (d.senha_dono.length < 6 || d.senha_barbeiro.length < 6) return err.textContent = ERROS.senha_curta;
+    if (d.senha_dono === d.senha_barbeiro) return err.textContent = ERROS.senha_repetida;
+    if (!d.aceite) return err.textContent = ERROS.aceite_obrigatorio;
+    btn.disabled = true; btn.textContent = 'Criando sua barbearia…';
+    try {
+      const r = await rpc('cadastro_publico', { p: d });
+      const { slug, token } = r[0];
+      SS.set('bb_token_' + slug, token); SS.set('bb_papel_' + slug, 'dono'); LS.set('bb_ultimo_slug', slug);
+      S.tab = 'fila'; location.hash = `#/${slug}/dono`;
+    } catch (e) {
+      err.textContent = e.code === 'telefone_invalido' ? ERROS.telefone_invalido_resp : msgErro(e);
+      btn.disabled = false; btn.textContent = 'Começar teste grátis de 2 dias';
+    }
+  };
+}
+
 /* =====================================================================
    ENTRAR: login único para barbearias (dono ou barbeiro) e administrador
    ===================================================================== */
@@ -2506,7 +2607,7 @@ function entrarView(modo){
       <input id="en-pw" type="password" autocomplete="current-password">
       <div class="err" id="en-err"></div>
       <button class="btn" id="en-ok">Entrar</button></div>
-    ${modo === 'barbearia' ? '<p class="mut center" style="font-size:13px">Esqueceu a senha? O dono troca a do barbeiro na aba Senhas; a do dono, o administrador redefine.</p>' : ''}`;
+    ${modo === 'barbearia' ? '<p class="mut center" style="font-size:13px">Esqueceu a senha? O dono troca a do barbeiro na aba Senhas; a do dono, o administrador redefine.</p><p class="center" style="margin-top:14px"><a href="#/planos" style="color:var(--gold2)">Ainda não tem conta? Conheça os planos</a></p>' : ''}`;
   $app.querySelectorAll('[data-m]').forEach(b => b.onclick = () => entrarView(b.dataset.m));
   const go = async () => {
     const err = document.getElementById('en-err'), pw = document.getElementById('en-pw').value, btn = document.getElementById('en-ok');
@@ -2587,6 +2688,8 @@ async function platPainel(){
   $app.innerHTML = `
     <div class="row"><h2 style="margin:0">🗂️ Plataforma</h2><button class="btn ghost sm" data-p="sair">Sair</button></div>
     <p class="mut" style="margin:6px 0 14px">${P.lista.length} barbearia(s) · ${ativas} ativa(s)</p>
+    ${caixaLink('Link de venda dos planos', linkBase() + '#/planos', 'Mande para barbeiros interessados: eles escolhem o plano, cadastram a barbearia e ganham 2 dias grátis.',
+      `Conheça a fila online para barbearias: o cliente entra na fila pelo celular e você chama pelo WhatsApp. Teste grátis por 2 dias: ${linkBase()}#/planos`)}
     <div class="kpis">${kpi('Pagantes em dia', pagantes.length, `${P.lista.filter(b => b.situacao === 'teste').length} em teste · ${P.lista.filter(b => b.situacao === 'aviso' || b.situacao === 'bloqueado').length} vencida(s)`)}
       ${kpi('Receita mensal', brl(mensal), 'antes da taxa do Mercado Pago')}</div>
     ${P.criada ? `<div class="alert" style="text-align:left;word-break:break-all">Barbearia criada! Envie estes links ao dono:<br><br>
@@ -2596,7 +2699,7 @@ async function platPainel(){
       ${P.lista.length ? P.lista.map(b => `<div class="item"><div class="grow">
           <div class="name">${esc(b.nome)} <span class="tag ${b.ativo ? sitTag(b)[0] : 'bad'}">${b.ativo ? sitTag(b)[1] : 'Desativada'}</span></div>
           <div class="mut">Plano ${NOME_PLANO[b.plano]}${b.isento ? ' · isenta' : ''}${b.vence_em && !b.isento ? ` · ${b.situacao === 'teste' ? 'teste até' : 'pago até'} ${new Date(b.vence_em).toLocaleDateString('pt-BR')}` : ''}${b.mp_status ? ` · Mercado Pago: ${esc(b.mp_status)}` : ''}</div>
-          <div class="mut" style="word-break:break-all">${esc(linkDe(b.slug))}</div>
+          <div class="mut" style="word-break:break-all">${esc(linkDe(b.slug))} <button class="btn ghost sm" style="padding:4px 10px;font-size:12px" data-copiar="${esc(linkDe(b.slug))}">Copiar</button></div>
           <div class="mut">${b.clientes} cliente(s) · ${b.atendimentos_30d} atendimento(s) nos últimos 30 dias${b.ultimo_atendimento ? ` · último em ${new Date(b.ultimo_atendimento).toLocaleDateString('pt-BR')}` : ''}</div>
           <div class="actions">
             <select id="pl-${b.id}" style="width:auto;padding:8px 10px;font-size:14px">${opPlano(b.plano)}</select>
