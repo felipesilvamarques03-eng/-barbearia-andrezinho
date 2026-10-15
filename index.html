@@ -1883,6 +1883,9 @@ async function startAdmin(){
 
 function bannerConta(){
   const c = S.conta; if (!c) return '';
+  return (c.aviso_global ? `<div class="banner info">📢 ${esc(c.aviso_global)}</div>` : '') + bannerSituacao(c);
+}
+function bannerSituacao(c){
   const quando = d => d ? `${dm(new Date(d))} às ${fmtTime(d)}` : '';
   if (c.situacao === 'teste') return `<div class="banner info">Teste grátis do plano ${NOME_PLANO[c.plano]} até ${quando(c.vence_em)}.${S.papel === 'dono' ? ' Assine na aba Plano para continuar usando.' : ''}</div>`;
   if (c.situacao === 'aviso') {

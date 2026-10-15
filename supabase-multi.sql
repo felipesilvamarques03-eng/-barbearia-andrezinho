@@ -242,6 +242,7 @@ drop function if exists adm_atendimentos(text);
 drop function if exists plat_listar(text);
 drop function if exists plat_criar(text, text, text, text, text);
 drop function if exists dono_ajustes(text, text, jsonb, int, int);
+drop function if exists adm_conta(text);
 
 -- ---------- funções internas ----------
 create or replace function _bloqueio(p_barb bigint)
@@ -477,7 +478,8 @@ end $$;
 -- plano e situação da mensalidade (dono e barbeiro; funciona mesmo vencida)
 create or replace function adm_conta(p_token text)
 returns table (papel text, plano text, nivel int, isento boolean, situacao text, vence_em timestamptz,
-               mp_status text, tem_assinatura boolean, cidade text, pix_tipo text, pix_chave text, pix_nome text)
+               mp_status text, tem_assinatura boolean, cidade text, pix_tipo text, pix_chave text, pix_nome text,
+               aviso_global text)
 language plpgsql security definer set search_path = public, extensions as $$
 declare v record;
 begin
@@ -485,7 +487,9 @@ begin
   if v.o_papel = 'plataforma' or v.o_barb is null then raise exception 'nao_autorizado'; end if;
   return query
     select v.o_papel, b.plano, p.nivel, b.isento, s.o_sit, s.o_vence, b.mp_status, b.mp_assinatura_id is not null,
-           b.cidade, b.pix_tipo, b.pix_chave, b.pix_nome
+           b.cidade, b.pix_tipo, b.pix_chave, b.pix_nome,
+           (select c.valor from config c where c.chave = 'aviso_global'
+              and coalesce((select (c2.valor)::timestamptz from config c2 where c2.chave = 'aviso_global_ate'), 'infinity') > now())
     from barbearias b join planos p on p.codigo = b.plano, _situacao(b.id) s
     where b.id = v.o_barb and b.ativo;
   if not found then raise exception 'barbearia_inativa'; end if;
@@ -793,9 +797,11 @@ begin
   end if;
   if p_pin_dono = p_pin_barbeiro then raise exception 'senha_repetida'; end if;
   if not exists (select 1 from planos where codigo = p_plano) then raise exception 'plano_invalido'; end if;
-  insert into barbearias (slug, nome, pin_dono, pin_barbeiro, plano, teste_ate)
+  insert into barbearias (slug, nome, pin_dono, pin_barbeiro, plano, teste_ate, servicos)
   values (v_slug, btrim(p_nome), crypt(p_pin_dono, gen_salt('bf')), crypt(p_pin_barbeiro, gen_salt('bf')),
-          p_plano, now() + interval '2 days');
+          p_plano, now() + interval '2 days',
+          coalesce((select valor::jsonb from config where chave = 'servicos_padrao'),
+                   '[{"nome":"Corte","preco":35},{"nome":"Barba","preco":25},{"nome":"Corte + Barba","preco":55}]'::jsonb));
 end $$;
 
 create or replace function plat_ativar(p_token text, p_id bigint, p_ativo boolean)
@@ -933,3 +939,276 @@ grant execute on function mp_guardar_pendente(bigint, text) to service_role;
 grant execute on function mp_assinatura(bigint, text, text, text) to service_role;
 grant execute on function mp_pagamento(bigint, text, numeric) to service_role;
 grant execute on function mp_assinatura_do_dono(text) to service_role;
+
+-- =====================================================================
+-- LGPD: dados dos COMPRADORES (responsáveis pelas barbearias assinantes)
+-- Usado só pelo painel de administrador (via conector do Supabase, como dono do projeto).
+-- Base legal: execução de contrato (Lei 13.709/2018, art. 7º, V).
+-- Princípios aplicados: necessidade (art. 6º, III), segurança (art. 6º, VII; art. 46),
+-- responsabilização (art. 6º, X) e registro das operações (art. 37).
+-- Clientes e profissionais de cada barbearia: a barbearia é a controladora;
+-- o painel mostra só quantidades, nunca esses dados pessoais.
+-- =====================================================================
+alter table barbearias
+  add column if not exists resp_nome text check (resp_nome is null or length(btrim(resp_nome)) between 5 and 100),
+  add column if not exists resp_doc_tipo text check (resp_doc_tipo is null or resp_doc_tipo in ('cpf','cnpj')),
+  add column if not exists resp_doc text check (resp_doc is null or resp_doc ~ '^\d{11}$|^\d{14}$'),
+  add column if not exists resp_telefone text check (resp_telefone is null or resp_telefone ~ '^\d{10,11}$'),
+  add column if not exists resp_email text check (resp_email is null or resp_email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
+  add column if not exists endereco text check (endereco is null or length(endereco) <= 200),
+  add column if not exists resp_atualizado_em timestamptz,
+  add column if not exists dados_anonimizados_em timestamptz;
+
+create table if not exists log_lgpd (
+  id bigint generated always as identity primary key,
+  em timestamptz not null default now(),
+  acao text not null,
+  barbearia_id bigint,
+  motivo text,
+  detalhe text
+);
+alter table log_lgpd enable row level security;
+revoke all on log_lgpd from anon, authenticated;
+
+create or replace function _cnpj_valido(p text)
+returns boolean language plpgsql immutable as $$
+declare d int[]; s int; r int; i int; p1 int[] := array[5,4,3,2,9,8,7,6,5,4,3,2]; p2 int[] := array[6,5,4,3,2,9,8,7,6,5,4,3,2];
+begin
+  if p is null or p !~ '^\d{14}$' or p ~ '^(\d)\1{13}$' then return false; end if;
+  d := array(select substr(p, g, 1)::int from generate_series(1, 14) g);
+  s := 0; for i in 1..12 loop s := s + d[i] * p1[i]; end loop;
+  r := s % 11; r := case when r < 2 then 0 else 11 - r end;
+  if r <> d[13] then return false; end if;
+  s := 0; for i in 1..13 loop s := s + d[i] * p2[i]; end loop;
+  r := s % 11; r := case when r < 2 then 0 else 11 - r end;
+  return r = d[14];
+end $$;
+
+create or replace function _mask_nome(p text) returns text language sql immutable as $$
+  select case when p is null then null else
+    split_part(btrim(p), ' ', 1) || coalesce(' ' || (select string_agg(left(w, 1) || '.', ' ')
+      from unnest((regexp_split_to_array(btrim(p), '\s+'))[2:]) w where length(w) > 2), '') end;
+$$;
+create or replace function _mask_doc(p text) returns text language sql immutable as $$
+  select case when p is null then null
+    when length(p) = 11 then '***.' || substr(p, 4, 3) || '.' || substr(p, 7, 3) || '-**'
+    else '**.***.' || substr(p, 6, 3) || '/' || substr(p, 9, 4) || '-**' end;
+$$;
+create or replace function _mask_tel(p text) returns text language sql immutable as $$
+  select case when p is null then null else '(' || left(p, 2) || ') *****-' || right(p, 4) end;
+$$;
+create or replace function _mask_email(p text) returns text language sql immutable as $$
+  select case when p is null then null else left(p, 1) || '***@' || split_part(p, '@', 2) end;
+$$;
+
+create or replace function _lgpd_log(p_acao text, p_barb bigint, p_motivo text, p_detalhe text default null)
+returns void language sql security definer set search_path = public as $$
+  insert into log_lgpd (acao, barbearia_id, motivo, detalhe) values (p_acao, p_barb, nullif(btrim(coalesce(p_motivo, '')), ''), p_detalhe);
+$$;
+
+-- lista de compradores com dados pessoais mascarados e sem nenhum valor em dinheiro
+create or replace function lgpd_painel()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v jsonb;
+begin
+  select jsonb_build_object('gerado_em', now(), 'compradores', coalesce(jsonb_agg(x order by (x->>'criado_em')), '[]'::jsonb)) into v
+  from (
+    select jsonb_build_object(
+      'id', b.id, 'slug', b.slug, 'nome', b.nome, 'cidade', b.cidade, 'criado_em', b.criado_em,
+      'plano', b.plano, 'isento', b.isento, 'ativo', b.ativo, 'situacao', s.o_sit, 'vence_em', s.o_vence,
+      'cobranca_automatica', b.mp_status,
+      'resp_nome', _mask_nome(b.resp_nome), 'resp_doc', _mask_doc(b.resp_doc), 'resp_doc_tipo', b.resp_doc_tipo,
+      'resp_telefone', _mask_tel(b.resp_telefone), 'resp_email', _mask_email(b.resp_email),
+      'tem_endereco', b.endereco is not null, 'tem_dados', b.resp_nome is not null,
+      'resp_atualizado_em', b.resp_atualizado_em, 'dados_anonimizados_em', b.dados_anonimizados_em,
+      'pix_cadastrado', b.pix_chave is not null,
+      'clientes', (select count(*) from clientes c where c.barbearia_id = b.id),
+      'profissionais_ativos', (select count(*) from profissionais p where p.barbearia_id = b.id and p.ativo),
+      'atendimentos_30d', (select count(*) from fila f where f.barbearia_id = b.id and f.status = 'atendido'
+                             and f.finalizado_em > now() - interval '30 days'),
+      'ultimo_atendimento', (select max(f.finalizado_em) from fila f where f.barbearia_id = b.id and f.status = 'atendido'),
+      'mensalidades_pagas', (select count(*) from pagamentos g where g.barbearia_id = b.id),
+      'ultima_mensalidade', (select max(g.pago_em) from pagamentos g where g.barbearia_id = b.id)
+    ) x
+    from barbearias b, _situacao(b.id) s
+  ) t;
+  perform _lgpd_log('abriu a lista (dados mascarados)', null, null);
+  return v;
+end $$;
+
+-- dados completos de um comprador: exige motivo e fica registrado
+create or replace function lgpd_revelar(p_id bigint, p_motivo text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v jsonb;
+begin
+  if length(btrim(coalesce(p_motivo, ''))) < 5 then raise exception 'motivo_obrigatorio'; end if;
+  select jsonb_build_object('id', id, 'nome_barbearia', nome, 'resp_nome', resp_nome, 'resp_doc_tipo', resp_doc_tipo,
+           'resp_doc', resp_doc, 'resp_telefone', resp_telefone, 'resp_email', resp_email, 'endereco', endereco)
+    into v from barbearias where id = p_id;
+  if v is null then raise exception 'nao_encontrado'; end if;
+  perform _lgpd_log('viu os dados completos', p_id, p_motivo);
+  return v;
+end $$;
+
+-- correção / cadastro dos dados do responsável (art. 18, III)
+create or replace function lgpd_salvar(p_id bigint, p jsonb, p_motivo text)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_doc text := nullif(regexp_replace(coalesce(p->>'resp_doc', ''), '\D', '', 'g'), '');
+  v_tipo text := nullif(p->>'resp_doc_tipo', '');
+  v_tel text := nullif(regexp_replace(coalesce(p->>'resp_telefone', ''), '\D', '', 'g'), '');
+  v_email text := nullif(lower(btrim(coalesce(p->>'resp_email', ''))), '');
+  v_nome text := nullif(btrim(coalesce(p->>'resp_nome', '')), '');
+begin
+  if length(btrim(coalesce(p_motivo, ''))) < 5 then raise exception 'motivo_obrigatorio'; end if;
+  if v_nome is not null and (length(v_nome) < 5 or position(' ' in v_nome) = 0) then raise exception 'nome_completo'; end if;
+  if v_doc is not null then
+    if v_tipo = 'cpf' and not _cpf_valido(v_doc) then raise exception 'cpf_invalido'; end if;
+    if v_tipo = 'cnpj' and not _cnpj_valido(v_doc) then raise exception 'cnpj_invalido'; end if;
+    if v_tipo is null or v_tipo not in ('cpf','cnpj') then raise exception 'doc_tipo'; end if;
+  end if;
+  if v_tel is not null and v_tel !~ '^\d{10,11}$' then raise exception 'telefone_invalido'; end if;
+  if v_email is not null and v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'email_invalido'; end if;
+  update barbearias set resp_nome = v_nome, resp_doc_tipo = case when v_doc is null then null else v_tipo end, resp_doc = v_doc,
+    resp_telefone = v_tel, resp_email = v_email, endereco = nullif(btrim(coalesce(p->>'endereco', '')), ''),
+    resp_atualizado_em = now()
+  where id = p_id;
+  if not found then raise exception 'nao_encontrado'; end if;
+  perform _lgpd_log('cadastrou/corrigiu dados', p_id, p_motivo);
+end $$;
+
+-- cópia dos dados do titular, para atender pedido de acesso ou portabilidade (art. 18, II e V)
+create or replace function lgpd_exportar(p_id bigint, p_motivo text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v jsonb;
+begin
+  if length(btrim(coalesce(p_motivo, ''))) < 5 then raise exception 'motivo_obrigatorio'; end if;
+  select jsonb_build_object(
+    'gerado_em', now(),
+    'controlador', 'Plataforma Fila de Barbearia',
+    'finalidade', 'Execução do contrato de assinatura do sistema de fila e gestão (Lei 13.709/2018, art. 7º, V)',
+    'titular', jsonb_build_object('nome', b.resp_nome, 'documento_tipo', b.resp_doc_tipo, 'documento', b.resp_doc,
+                                  'telefone', b.resp_telefone, 'email', b.resp_email),
+    'barbearia', jsonb_build_object('nome', b.nome, 'endereco_no_link', b.slug, 'endereco', b.endereco, 'cidade', b.cidade,
+                                    'cadastrada_em', b.criado_em, 'plano', b.plano, 'situacao', s.o_sit, 'pago_ou_teste_ate', s.o_vence),
+    'mensalidades', coalesce((select jsonb_agg(jsonb_build_object('data', g.pago_em, 'origem', g.origem) order by g.pago_em)
+                               from pagamentos g where g.barbearia_id = b.id), '[]'::jsonb))
+  into v from barbearias b, _situacao(b.id) s where b.id = p_id;
+  if v is null then raise exception 'nao_encontrado'; end if;
+  perform _lgpd_log('exportou os dados do titular', p_id, p_motivo);
+  return v;
+end $$;
+
+-- eliminação/anonimização dos dados do responsável (art. 18, IV e VI; art. 16)
+create or replace function lgpd_anonimizar(p_id bigint, p_motivo text, p_confirmacao text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if length(btrim(coalesce(p_motivo, ''))) < 5 then raise exception 'motivo_obrigatorio'; end if;
+  if not exists (select 1 from barbearias where id = p_id and slug = lower(btrim(coalesce(p_confirmacao, '')))) then
+    raise exception 'confirmacao_errada';
+  end if;
+  update barbearias set resp_nome = null, resp_doc_tipo = null, resp_doc = null, resp_telefone = null, resp_email = null,
+    endereco = null, dados_anonimizados_em = now(), resp_atualizado_em = now()
+  where id = p_id;
+  perform _lgpd_log('anonimizou os dados do responsável', p_id, p_motivo);
+end $$;
+
+-- registro das operações (art. 37)
+create or replace function lgpd_registro(p_limite int default 100)
+returns jsonb language sql security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('em', l.em, 'acao', l.acao, 'barbearia', b.nome, 'motivo', l.motivo) order by l.em desc), '[]'::jsonb)
+  from (select * from log_lgpd order by em desc limit least(greatest(coalesce(p_limite, 100), 1), 500)) l
+  left join barbearias b on b.id = l.barbearia_id;
+$$;
+
+-- ninguém de fora chama estas funções: só o dono do projeto, pelo conector do Supabase
+do $$ declare f text; begin
+  foreach f in array array['_cnpj_valido(text)','_mask_nome(text)','_mask_doc(text)','_mask_tel(text)','_mask_email(text)',
+    '_lgpd_log(text,bigint,text,text)','lgpd_painel()','lgpd_revelar(bigint,text)','lgpd_salvar(bigint,jsonb,text)',
+    'lgpd_exportar(bigint,text)','lgpd_anonimizar(bigint,text,text)','lgpd_registro(int)'] loop
+    execute 'revoke execute on function ' || f || ' from public, anon, authenticated, service_role';
+  end loop;
+end $$;
+
+
+-- =====================================================================
+-- ASSISTENTE DE IA DO ADMINISTRADOR
+-- A IA só lê dados sem informação pessoal e sem dinheiro das barbearias,
+-- e só PROPÕE mudanças; quem aplica é o administrador, uma por uma.
+-- Ações permitidas (todas da plataforma, nunca do que o barbeiro cadastrou):
+--   plano, liberar dias, ativar/desativar, isentar, preço dos planos,
+--   aviso geral nos painéis, serviços padrão para barbearias NOVAS.
+-- =====================================================================
+create or replace function ia_barbearias()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'agora', now(),
+    'planos', (select jsonb_agg(jsonb_build_object('codigo', codigo, 'nome', nome, 'preco_mensal', preco) order by nivel) from planos),
+    'aviso_global', (select valor from config where chave = 'aviso_global'),
+    'aviso_global_ate', (select valor from config where chave = 'aviso_global_ate'),
+    'servicos_padrao_novas', (select valor::jsonb from config where chave = 'servicos_padrao'),
+    'barbearias', coalesce((select jsonb_agg(jsonb_build_object(
+        'id', b.id, 'endereco', b.slug, 'nome', b.nome, 'cidade', b.cidade, 'plano', b.plano, 'isenta', b.isento,
+        'ativa', b.ativo, 'situacao', s.o_sit, 'pago_ou_teste_ate', s.o_vence, 'cadastrada_em', b.criado_em,
+        'cobranca_automatica', b.mp_status,
+        'clientes', (select count(*) from clientes c where c.barbearia_id = b.id),
+        'profissionais_ativos', (select count(*) from profissionais p where p.barbearia_id = b.id and p.ativo),
+        'atendimentos_30d', (select count(*) from fila f where f.barbearia_id = b.id and f.status = 'atendido'
+                               and f.finalizado_em > now() - interval '30 days'))
+      order by b.id) from barbearias b, _situacao(b.id) s), '[]'::jsonb));
+$$;
+
+create or replace function ia_aplicar(p_acao text, p jsonb, p_resumo text)
+returns int language plpgsql security definer set search_path = public as $$
+declare v_ids bigint[]; n int := 0; v_txt text; v_dias int; s jsonb;
+begin
+  if p ? 'ids' then
+    select array_agg(x::bigint) into v_ids from jsonb_array_elements_text(p->'ids') x;
+    if v_ids is null or array_length(v_ids, 1) > 500 then raise exception 'ids_invalidos'; end if;
+  end if;
+  if p_acao = 'plano' then
+    if not exists (select 1 from planos where codigo = p->>'plano') then raise exception 'plano_invalido'; end if;
+    update barbearias set plano = p->>'plano' where id = any(v_ids); get diagnostics n = row_count;
+  elsif p_acao = 'liberar' then
+    v_dias := (p->>'dias')::int; if v_dias is null or v_dias not between 1 and 400 then raise exception 'dias_invalidos'; end if;
+    update barbearias set pago_ate = greatest(coalesce(pago_ate, now()), now()) + make_interval(days => v_dias)
+     where id = any(v_ids); get diagnostics n = row_count;
+    insert into pagamentos (barbearia_id, origem, dias) select unnest(v_ids), 'manual', v_dias;
+  elsif p_acao = 'ativar' then
+    update barbearias set ativo = (p->>'ativo')::boolean where id = any(v_ids); get diagnostics n = row_count;
+    if (p->>'ativo')::boolean is false then delete from sessoes where barbearia_id = any(v_ids); end if;
+  elsif p_acao = 'isentar' then
+    update barbearias set isento = (p->>'isento')::boolean where id = any(v_ids); get diagnostics n = row_count;
+  elsif p_acao = 'preco' then
+    if (p->>'preco')::numeric is null or (p->>'preco')::numeric not between 1 and 10000 then raise exception 'valor_invalido'; end if;
+    update planos set preco = round((p->>'preco')::numeric, 2) where codigo = p->>'plano'; get diagnostics n = row_count;
+  elsif p_acao = 'aviso' then
+    v_txt := nullif(btrim(coalesce(p->>'texto', '')), '');
+    if v_txt is not null and length(v_txt) > 280 then raise exception 'aviso_longo'; end if;
+    delete from config where chave in ('aviso_global', 'aviso_global_ate');
+    if v_txt is not null then
+      insert into config values ('aviso_global', v_txt);
+      if (p->>'dias')::int between 1 and 365 then
+        insert into config values ('aviso_global_ate', (now() + make_interval(days => (p->>'dias')::int))::text);
+      end if;
+    end if;
+    n := 1;
+  elsif p_acao = 'servicos_padrao' then
+    if jsonb_typeof(p->'servicos') <> 'array' or jsonb_array_length(p->'servicos') not between 1 and 20 then raise exception 'servicos_invalidos'; end if;
+    for s in select * from jsonb_array_elements(p->'servicos') loop
+      if jsonb_typeof(s->'nome') <> 'string' or length(btrim(s->>'nome')) not between 1 and 40
+         or jsonb_typeof(s->'preco') <> 'number' or (s->>'preco')::numeric not between 0 and 10000 then
+        raise exception 'servicos_invalidos';
+      end if;
+    end loop;
+    insert into config values ('servicos_padrao', (p->'servicos')::text) on conflict (chave) do update set valor = excluded.valor;
+    n := 1;
+  else
+    raise exception 'acao_nao_permitida';
+  end if;
+  perform _lgpd_log('assistente (aplicado pelo administrador): ' || p_acao, null, left(p_resumo, 300), p::text);
+  return n;
+end $$;
+
+revoke execute on function ia_barbearias() from public, anon, authenticated, service_role;
+revoke execute on function ia_aplicar(text, jsonb, text) from public, anon, authenticated, service_role;

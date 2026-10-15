@@ -1,0 +1,577 @@
+<title>Administração da Plataforma</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: console de uma coluna, cabeçalho com resumo, lista de compradores em cartões; diálogos próprios (sem prompt/confirm). */
+:root{
+  --bg:#F5F3EF; --surface:#FFFFFF; --sunk:#EDE9E2; --line:#DDD6CA; --fg:#1E1B16; --mut:#6B6458;
+  --accent:#8A5F12; --accent-bg:#F3E6CC; --ok:#1F7A4C; --ok-bg:#DCF0E4; --warn:#9A5B00; --warn-bg:#FBEBD0; --bad:#B23A2B; --bad-bg:#F8DEDA;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#151411; --surface:#1E1C18; --sunk:#262320; --line:#35312A; --fg:#F1ECE2; --mut:#A59D8F;
+  --accent:#E0B65A; --accent-bg:#3A2F17; --ok:#6FD39F; --ok-bg:#183527; --warn:#F0B866; --warn-bg:#3A2A12; --bad:#F09284; --bad-bg:#3D1F1A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151411; --surface:#1E1C18; --sunk:#262320; --line:#35312A; --fg:#F1ECE2; --mut:#A59D8F;
+  --accent:#E0B65A; --accent-bg:#3A2F17; --ok:#6FD39F; --ok-bg:#183527; --warn:#F0B866; --warn-bg:#3A2A12; --bad:#F09284; --bad-bg:#3D1F1A; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.5;margin:0}
+.wrap{max-width:860px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+h1{font-size:26px;line-height:1.15;margin:0;font-weight:700;text-wrap:balance}
+h2{font-size:17px;margin:0;font-weight:600}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.mut{color:var(--mut)} .small{font-size:13px}
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 14px;font-weight:500}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+button.danger{color:var(--bad);border-color:var(--bad)}
+button[disabled]{opacity:.55;cursor:default}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.tile b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
+.tile span{font-size:13px;color:var(--mut)}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:10px 12px;color:var(--mut);white-space:nowrap}
+.tabs button.on{color:var(--fg);border-bottom-color:var(--accent)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters input{flex:1 1 220px;min-width:0}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px;width:100%}
+.chip{border-radius:999px;padding:6px 12px;font-size:13px}
+.chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.list{display:flex;flex-direction:column;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.pill{font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.p-ok{background:var(--ok-bg);color:var(--ok)}.p-warn{background:var(--warn-bg);color:var(--warn)}.p-bad{background:var(--bad-bg);color:var(--bad)}.p-neutral{background:var(--sunk);color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px 18px}
+.kv{display:flex;flex-direction:column;min-width:0}
+.kv small{color:var(--mut);font-size:12px}
+.kv span{overflow-wrap:anywhere}
+.mono{font-family:var(--mono);font-size:13.5px}
+.counts{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--mut);font-variant-numeric:tabular-nums}
+.counts b{color:var(--fg);font-weight:600}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.reveal{background:var(--accent-bg);border:1px dashed var(--accent);border-radius:10px;padding:10px 12px}
+.banner{border-radius:12px;padding:12px 14px;border:1px solid var(--line);background:var(--surface)}
+.banner.err{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
+.banner.info{border-color:var(--accent);background:var(--accent-bg)}
+.log{display:flex;flex-direction:column}
+.log div{display:grid;grid-template-columns:130px 1fr;gap:4px 12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.log time{font-family:var(--mono);font-size:12.5px;color:var(--mut)}
+.prose{max-width:65ch;display:flex;flex-direction:column;gap:10px}
+.prose p,.prose li{margin:0}
+.prose ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--fg);padding:0;width:min(520px,calc(100vw - 32px));max-height:calc(100vh - 40px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg{padding:18px;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+.dlg label{font-size:13px;color:var(--mut);display:flex;flex-direction:column;gap:4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+pre.json{font-family:var(--mono);font-size:12px;background:var(--sunk);border-radius:10px;padding:10px;overflow:auto;max-height:280px;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.ferr{color:var(--bad);font-size:13px;min-height:1em}
+.empty{padding:28px 16px;text-align:center;color:var(--mut);border:1px dashed var(--line);border-radius:14px}
+.meter{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.meter-row{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.bar{height:8px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.bar div{height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+.bar div.alto{background:var(--bad)}
+.chat{display:flex;flex-direction:column;gap:10px}
+.msg{max-width:92%;padding:10px 14px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.eu{align-self:flex-end;background:var(--fg);color:var(--bg);border-bottom-right-radius:4px}
+.msg.ia{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.ia.pensando{color:var(--mut)}
+.prop{border-left:3px solid var(--accent)}
+.prop.feita{border-left-color:var(--ok);opacity:.8}
+.prop.descartada{opacity:.5}
+.composer{display:flex;flex-direction:column;gap:8px;position:sticky;bottom:0;background:var(--bg);padding-block:8px}
+@media (max-width:480px){.row2{grid-template-columns:1fr}.log div{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Painel do administrador</div>
+      <h1>Administração da plataforma</h1>
+      <div class="mut small" id="sub">Barbearias que assinam a plataforma. Dados pessoais protegidos conforme a LGPD.</div>
+    </div>
+    <button id="atualizar" type="button">Atualizar</button>
+  </header>
+
+  <div id="aviso" class="banner info" hidden></div>
+
+  <section class="tiles" id="tiles" aria-label="Resumo">
+    <div class="tile"><b>—</b><span>Compradores</span></div>
+    <div class="tile"><b>—</b><span>Em dia</span></div>
+    <div class="tile"><b>—</b><span>Em teste</span></div>
+    <div class="tile"><b>—</b><span>Vencidas</span></div>
+    <div class="tile"><b>—</b><span>Sem cadastro do responsável</span></div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button type="button" class="on" data-tab="lista">Compradores</button>
+    <button type="button" data-tab="ia">Assistente</button>
+    <button type="button" data-tab="registro">Registro de acessos</button>
+    <button type="button" data-tab="lgpd">Como os dados são protegidos</button>
+  </nav>
+
+  <section id="v-lista" class="list-wrap" style="display:flex;flex-direction:column;gap:12px">
+    <div class="filters">
+      <input id="busca" type="search" placeholder="Buscar barbearia ou cidade" aria-label="Buscar">
+      <div class="filters" id="chips"></div>
+    </div>
+    <div class="list" id="lista"><div class="empty">Carregando os compradores pelo seu conector do Supabase…</div></div>
+  </section>
+
+  <section id="v-ia" hidden style="display:flex;flex-direction:column;gap:12px">
+    <div class="banner">
+      <div class="small"><b>O que o assistente pode fazer:</b> ler o resumo das barbearias (sem dados pessoais e sem faturamento) e <b>propor</b> mudanças da plataforma: plano, liberar dias, ativar ou desativar, isentar, preço dos planos, aviso geral em todos os painéis e serviços padrão para barbearias novas. Nada é aplicado sem você tocar em <b>Aplicar</b>.</div>
+      <div class="small mut" style="margin-top:6px">Ele não altera dados pessoais nem o que cada barbeiro cadastrou (nome da barbearia, serviços e preços dele, Pix, equipe, clientes, despesas).</div>
+    </div>
+    <div class="meter" aria-live="polite">
+      <div class="meter-row"><span>Conversa usada</span><span id="ia-uso" class="mono">0 de ~65.000 tokens</span></div>
+      <div class="bar"><div id="ia-barra" style="width:0%"></div></div>
+      <div class="meter-row small mut"><span id="ia-chamadas">0 pedidos ao Claude nesta sessão</span><span id="ia-modelo"></span></div>
+      <div class="small mut">Estimativa do quanto a conversa ocupa do limite de cada pedido. O saldo de uso da sua conta não aparece para a página; se acabar, o assistente avisa.</div>
+    </div>
+    <div class="chat" id="ia-chat"><div class="empty small">Pergunte sobre as barbearias ou peça uma mudança geral. Exemplos abaixo.</div></div>
+    <div class="filters" id="ia-sug">
+      <button type="button" class="chip" data-s="Faça um resumo da plataforma: quantas barbearias por plano e por situação.">Resumo da plataforma</button>
+      <button type="button" class="chip" data-s="Quais barbearias vencem nos próximos 7 dias ou já estão vencidas?">Quem vence em 7 dias</button>
+      <button type="button" class="chip" data-s="Quero publicar um aviso para todas as barbearias: manutenção no domingo às 22h, por 3 dias.">Aviso para todos</button>
+      <button type="button" class="chip" data-s="Quais barbearias estão sem uso nos últimos 30 dias?">Barbearias paradas</button>
+    </div>
+    <div id="ia-props" class="list"></div>
+    <div class="composer">
+      <textarea id="ia-msg" rows="2" placeholder="Ex.: libere 30 dias para a Barbearia do João, que pagou por Pix"></textarea>
+      <div class="actions"><button type="button" class="primary" id="ia-enviar">Enviar</button><button type="button" id="ia-parar" hidden>Parar</button><button type="button" id="ia-limpar">Limpar conversa</button></div>
+    </div>
+  </section>
+
+  <section id="v-registro" hidden>
+    <p class="mut small">Cada abertura da lista, visualização completa, correção, exportação e anonimização fica registrada com data e motivo (LGPD, art. 37).</p>
+    <div class="log" id="log"></div>
+  </section>
+
+  <section id="v-lgpd" class="prose" hidden>
+    <h2>O que este painel mostra e por quê</h2>
+    <p>O comprador é o responsável por cada barbearia que assina a plataforma. Os dados dele são tratados para executar o contrato de assinatura (Lei 13.709/2018, art. 7º, V).</p>
+    <ul>
+      <li><b>Necessidade (art. 6º, III).</b> A lista mostra nome, documento, telefone e e-mail mascarados. O dado completo só aparece quando você informa o motivo, e some sozinho depois de 60 segundos.</li>
+      <li><b>Sem faturamento.</b> Nenhum valor em dinheiro das barbearias aparece aqui: só plano, situação da mensalidade e quantidades de uso.</li>
+      <li><b>Clientes e profissionais das barbearias.</b> Quem decide sobre esses dados é a barbearia (controladora, art. 5º, VI); a plataforma só os guarda por ela (operadora, art. 5º, VII). Por isso este painel mostra apenas quantidades, nunca nomes, telefones ou CPFs.</li>
+      <li><b>Segurança (art. 6º, VII e art. 46).</b> As funções deste painel só rodam com o acesso de dono do projeto no Supabase. O site público e o login dos barbeiros não conseguem chamá-las.</li>
+      <li><b>Registro (art. 37) e responsabilização (art. 6º, X).</b> Toda ação fica no Registro de acessos.</li>
+      <li><b>Direitos do titular (art. 18).</b> Corrigir dados (III), exportar uma cópia para acesso ou portabilidade (II e V) e anonimizar ou eliminar (IV e VI). A eliminação pode ter exceções, como guardar o que a lei obriga (art. 16, I).</li>
+    </ul>
+    <p class="mut small">Este painel ajuda a cumprir a lei, mas não substitui orientação jurídica. Fonte: <a href="https://planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank" rel="noopener">Lei 13.709/2018 no site do Planalto</a>.</p>
+  </section>
+</div>
+
+<dialog id="dlg"><div class="dlg" id="dlg-c"></div></dialog>
+
+<script>
+const PROJETO = 'pndispqytfrezeiokgwk';
+const SERVER = 'Supabase';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dt = s => s ? new Date(s).toLocaleDateString('pt-BR') : '—';
+const dth = s => s ? new Date(s).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'}) : '—';
+const PLANO = { basic: 'Basic', pro: 'Pro', expert: 'Expert' };
+const SIT = { isento: ['p-ok','Isenta'], ativo: ['p-ok','Em dia'], teste: ['p-warn','Em teste'], aviso: ['p-warn','Vencida (aviso)'], bloqueado: ['p-bad','Pausada'] };
+const ERROS = {
+  motivo_obrigatorio: 'Escreva o motivo (pelo menos 5 letras).', nome_completo: 'Informe nome e sobrenome.',
+  cpf_invalido: 'CPF inválido.', cnpj_invalido: 'CNPJ inválido.', doc_tipo: 'Escolha CPF ou CNPJ.',
+  telefone_invalido: 'Telefone inválido: use DDD + número.', email_invalido: 'E-mail inválido.',
+  confirmacao_errada: 'O endereço digitado não confere.', nao_encontrado: 'Comprador não encontrado.'
+};
+const S = { mcp: null, dados: null, filtro: 'todos', busca: '', revelados: {}, log: null, tab: 'lista' };
+
+/* ---------- acesso ao banco pelo conector do Supabase ---------- */
+const txt = v => { const s = String(v ?? ''); let t; do { t = 'q' + Math.random().toString(36).slice(2, 8); } while (s.includes('$' + t + '$')); return `$${t}$${s}$${t}$`; };
+const inteiro = n => { n = Number(n); if (!Number.isInteger(n) || n < 1) throw { code: 'bad_request', message: 'id' }; return String(n); };
+function linhas(payload){
+  let s = typeof payload === 'string' ? payload : (payload && typeof payload.result === 'string' ? payload.result : null);
+  if (s === null) return Array.isArray(payload) ? payload : [];
+  const m = s.match(/<untrusted-data-[\w-]+>\s*([\s\S]*?)\s*<\/untrusted-data-[\w-]+>/);
+  return JSON.parse(m ? m[1] : s);
+}
+const valor = v => typeof v === 'string' ? JSON.parse(v) : v;
+async function sql(query){
+  if (!S.mcp) throw { code: 'sem_mcp' };
+  const r = await S.mcp.callTool(SERVER, 'execute_sql', { project_id: PROJETO, query }, { cache: false });
+  const p = r.payload !== undefined ? r.payload : (r.content && r.content[0] && r.content[0].text);
+  return linhas(p);
+}
+function mensagem(e){
+  const raw = String((e && e.message) || '') + ' ' + JSON.stringify((e && e.result) || '');
+  for (const k of Object.keys(ERROS)) if (raw.includes(k)) return ERROS[k];
+  if (/lgpd_\w+\(.*does not exist|function lgpd_/i.test(raw)) return 'O banco ainda não tem as funções deste painel. Rode o arquivo supabase-multi.sql no SQL Editor do Supabase e toque em Atualizar.';
+  switch (e && e.code) {
+    case 'sem_mcp': case 'not_granted': case 'capability_disabled': case 'capability_removed':
+      return 'Este painel precisa ser aberto no claude.ai, onde ele usa o seu conector do Supabase.';
+    case 'server_not_connected': return 'Adicione o Supabase em Configurações → Conectores, no claude.ai, e toque em Atualizar.';
+    case 'needs_reauth': return 'Reconecte o Supabase em Configurações → Conectores, no claude.ai.';
+    case 'selection_required': return 'Escolha qual conta do Supabase usar no aviso do claude.ai e toque em Atualizar.';
+    case 'not_in_manifest': return 'O acesso ao Supabase foi recusado para este painel. Libere em Permissões, no menu do painel.';
+    case 'approval_required': case 'consent_required': return 'O claude.ai precisa da sua aprovação para usar o Supabase. Toque em Atualizar e permita.';
+    case 'blocked_by_policy': return 'Uma política da sua organização bloqueia o Supabase aqui.';
+    case 'server_unavailable': return 'O Supabase não respondeu agora. Tente de novo em instantes.';
+    case 'cancelled': return 'A operação foi cancelada.';
+    case 'tool_error': return 'O banco recusou a operação: ' + String(e.message || '').slice(0, 200);
+    default: return 'Não foi possível falar com o Supabase agora. Tente de novo em instantes.';
+  }
+}
+function aviso(texto, tipo = 'info'){ const a = $('#aviso'); a.hidden = !texto; a.className = 'banner ' + tipo; a.textContent = texto || ''; }
+
+/* ---------- carregar ---------- */
+async function carregar(){
+  const b = $('#atualizar'); b.disabled = true; b.textContent = 'Atualizando…';
+  try {
+    const r = await sql('select lgpd_painel() as r');
+    S.dados = valor(r[0].r); aviso('');
+    $('#sub').textContent = `Atualizado em ${dth(S.dados.gerado_em)}. Dados pessoais mascarados; o dado completo exige motivo e fica registrado.`;
+    render();
+    if (S.tab === 'registro') carregarLog();
+  } catch (e) {
+    aviso(mensagem(e), 'err');
+    if (!S.dados) $('#lista').innerHTML = `<div class="empty">${esc(mensagem(e))}</div>`;
+  } finally { b.disabled = false; b.textContent = 'Atualizar'; }
+}
+async function carregarLog(){
+  $('#log').innerHTML = '<p class="mut">Carregando…</p>';
+  try {
+    const r = await sql('select lgpd_registro(200) as r');
+    S.log = valor(r[0].r);
+    $('#log').innerHTML = S.log.length ? S.log.map(l => `<div><time>${esc(dth(l.em))}</time>
+      <span>${esc(l.acao)}${l.barbearia ? ` · <b>${esc(l.barbearia)}</b>` : ''}${l.motivo ? `<br><span class="mut small">Motivo: ${esc(l.motivo)}</span>` : ''}</span></div>`).join('')
+      : '<p class="mut">Nenhum registro ainda.</p>';
+  } catch (e) { $('#log').innerHTML = `<div class="banner err">${esc(mensagem(e))}</div>`; }
+}
+
+/* ---------- desenhar ---------- */
+function render(){
+  const cs = (S.dados && S.dados.compradores) || [];
+  const conta = f => cs.filter(f).length;
+  const tiles = [[cs.length, 'Compradores'], [conta(c => c.situacao === 'ativo' || c.situacao === 'isento'), 'Em dia ou isentas'],
+    [conta(c => c.situacao === 'teste'), 'Em teste'], [conta(c => c.situacao === 'aviso' || c.situacao === 'bloqueado'), 'Vencidas'],
+    [conta(c => !c.tem_dados), 'Sem cadastro do responsável']];
+  $('#tiles').innerHTML = tiles.map(([n, t]) => `<div class="tile"><b>${n}</b><span>${t}</span></div>`).join('');
+  const filtros = [['todos','Todas'],['ativo','Em dia'],['teste','Em teste'],['vencidas','Vencidas'],['semdados','Sem cadastro']];
+  $('#chips').innerHTML = filtros.map(([k, t]) => `<button type="button" class="chip${S.filtro === k ? ' on' : ''}" data-f="${k}">${t}</button>`).join('');
+  const q = S.busca.trim().toLowerCase();
+  const lista = cs.filter(c => {
+    if (q && !(`${c.nome} ${c.cidade} ${c.slug}`.toLowerCase().includes(q))) return false;
+    if (S.filtro === 'ativo') return c.situacao === 'ativo' || c.situacao === 'isento';
+    if (S.filtro === 'teste') return c.situacao === 'teste';
+    if (S.filtro === 'vencidas') return c.situacao === 'aviso' || c.situacao === 'bloqueado';
+    if (S.filtro === 'semdados') return !c.tem_dados;
+    return true;
+  });
+  $('#lista').innerHTML = lista.length ? lista.map(cartao).join('')
+    : `<div class="empty">${cs.length ? 'Nenhum comprador com esse filtro.' : 'Nenhuma barbearia cadastrada ainda.'}</div>`;
+}
+function cartao(c){
+  const [cls, rot] = c.ativo ? (SIT[c.situacao] || ['p-neutral', c.situacao]) : ['p-neutral', 'Desativada'];
+  const rv = S.revelados[c.id];
+  const dado = (k, mascarado) => rv ? esc(rv[k] ?? '—') : esc(mascarado ?? '—');
+  const doc = rv ? (rv.resp_doc ? `${(rv.resp_doc_tipo || '').toUpperCase()} ${esc(rv.resp_doc)}` : '—') : (c.resp_doc ? `${(c.resp_doc_tipo || '').toUpperCase()} ${esc(c.resp_doc)}` : '—');
+  return `<article class="card">
+    <div class="card-h"><div><h2>${esc(c.nome)}</h2><div class="mut small">${esc(c.cidade || '')} · /#/${esc(c.slug)} · desde ${dt(c.criado_em)}</div></div>
+      <span class="pill ${cls}">${rot}</span></div>
+    <div class="grid">
+      <div class="kv"><small>Plano</small><span>${PLANO[c.plano] || esc(c.plano)}${c.isento ? ' · isenta' : ''}</span></div>
+      <div class="kv"><small>${c.situacao === 'teste' ? 'Teste até' : 'Pago até'}</small><span>${c.isento ? '—' : dt(c.vence_em)}</span></div>
+      <div class="kv"><small>Cobrança automática</small><span>${c.cobranca_automatica === 'authorized' ? 'Ativa' : c.cobranca_automatica ? esc(c.cobranca_automatica) : 'Não'}</span></div>
+      <div class="kv"><small>Mensalidades registradas</small><span>${c.mensalidades_pagas}${c.ultima_mensalidade ? ` · última em ${dt(c.ultima_mensalidade)}` : ''}</span></div>
+    </div>
+    <div class="${rv ? 'reveal' : ''}">
+      ${rv ? `<div class="small" style="margin-bottom:6px"><b>Dados completos visíveis</b> · somem em <span data-cd="${c.id}">60</span> s · acesso registrado</div>` : ''}
+      ${c.tem_dados || rv ? `<div class="grid">
+        <div class="kv"><small>Responsável</small><span>${dado('resp_nome', c.resp_nome)}</span></div>
+        <div class="kv"><small>Documento</small><span class="mono">${doc}</span></div>
+        <div class="kv"><small>Telefone</small><span class="mono">${dado('resp_telefone', c.resp_telefone)}</span></div>
+        <div class="kv"><small>E-mail</small><span class="mono">${dado('resp_email', c.resp_email)}</span></div>
+        ${rv ? `<div class="kv"><small>Endereço</small><span>${esc(rv.endereco || '—')}</span></div>` : ''}
+      </div>` : `<div class="mut small">${c.dados_anonimizados_em ? `Dados do responsável anonimizados em ${dt(c.dados_anonimizados_em)}.` : 'Dados do responsável ainda não cadastrados.'}</div>`}
+    </div>
+    <div class="counts"><span><b>${c.clientes}</b> clientes</span><span><b>${c.profissionais_ativos}</b> profissionais ativos</span>
+      <span><b>${c.atendimentos_30d}</b> atendimentos em 30 dias</span><span>Último uso: <b>${dt(c.ultimo_atendimento)}</b></span>
+      <span>Pix: <b>${c.pix_cadastrado ? 'cadastrado' : 'não'}</b></span></div>
+    <div class="actions">
+      ${c.tem_dados ? (rv ? `<button type="button" data-a="ocultar" data-id="${c.id}">Ocultar agora</button>` : `<button type="button" data-a="ver" data-id="${c.id}">Ver dados completos</button>`) : ''}
+      <button type="button" data-a="editar" data-id="${c.id}">${c.tem_dados ? 'Corrigir dados' : 'Cadastrar responsável'}</button>
+      ${c.tem_dados ? `<button type="button" data-a="exportar" data-id="${c.id}">Exportar dados do titular</button>
+      <button type="button" class="danger" data-a="anonimizar" data-id="${c.id}">Anonimizar</button>` : ''}
+    </div>
+  </article>`;
+}
+
+/* ---------- diálogos (sem prompt/confirm) ---------- */
+const dlg = $('#dlg');
+function abrir(html){ $('#dlg-c').innerHTML = html; dlg.showModal(); }
+function fechar(){ dlg.close(); }
+const motivoCampo = (sug = '') => `<label>Motivo (fica registrado)<input id="m-motivo" maxlength="200" value="${esc(sug)}" placeholder="Ex.: confirmar contato para cobrança"></label>`;
+const comprador = id => S.dados.compradores.find(c => c.id === id);
+
+function pedirMotivo(id, titulo, explica, acao, sug){
+  const c = comprador(id);
+  abrir(`<h2>${titulo}</h2><p class="mut small">${esc(c.nome)}. ${explica}</p>${motivoCampo(sug)}
+    <div class="ferr" id="m-err"></div>
+    <div class="actions"><button type="button" data-d="fechar">Cancelar</button><button type="button" class="primary" data-d="${acao}" data-id="${id}">Continuar</button></div>`);
+  setTimeout(() => $('#m-motivo').focus(), 30);
+}
+
+function formEditar(id, rv){
+  const c = comprador(id), v = k => esc((rv && rv[k]) || '');
+  abrir(`<h2>${c.tem_dados ? 'Corrigir dados do responsável' : 'Cadastrar responsável'}</h2>
+    <p class="mut small">${esc(c.nome)}. Guarde só o necessário para o contrato e a cobrança.</p>
+    <label>Nome completo<input id="e-nome" value="${v('resp_nome')}" maxlength="100"></label>
+    <div class="row2"><label>Documento<select id="e-tipo"><option value="cpf"${rv && rv.resp_doc_tipo === 'cnpj' ? '' : ' selected'}>CPF</option><option value="cnpj"${rv && rv.resp_doc_tipo === 'cnpj' ? ' selected' : ''}>CNPJ</option></select></label>
+      <label>Número<input id="e-doc" inputmode="numeric" value="${v('resp_doc')}"></label></div>
+    <div class="row2"><label>Telefone (com DDD)<input id="e-tel" inputmode="tel" value="${v('resp_telefone')}"></label>
+      <label>E-mail<input id="e-email" type="email" value="${v('resp_email')}"></label></div>
+    <label>Endereço da barbearia<input id="e-end" value="${v('endereco')}" maxlength="200"></label>
+    ${motivoCampo(c.tem_dados ? 'Correção a pedido do titular' : 'Cadastro do contrato de assinatura')}
+    <div class="ferr" id="m-err"></div>
+    <div class="actions"><button type="button" data-d="fechar">Cancelar</button><button type="button" class="primary" data-d="salvar" data-id="${id}">Salvar</button></div>`);
+}
+
+async function executar(btn, fn){
+  const err = $('#m-err'), motivo = ($('#m-motivo') || {}).value || '';
+  if (err) err.textContent = '';
+  if (motivo.trim().length < 5) { err.textContent = ERROS.motivo_obrigatorio; return; }
+  btn.disabled = true;
+  try { await fn(motivo.trim()); }
+  catch (e) { if (err) err.textContent = mensagem(e); }
+  finally { btn.disabled = false; }
+}
+
+const timers = {};
+function mostrarRevelado(id, dados){
+  S.revelados[id] = dados; render();
+  clearInterval(timers[id]); let s = 60;
+  timers[id] = setInterval(() => { s--; const el = document.querySelector(`[data-cd="${id}"]`); if (el) el.textContent = s;
+    if (s <= 0) { clearInterval(timers[id]); delete S.revelados[id]; render(); } }, 1000);
+}
+
+dlg.addEventListener('click', async ev => {
+  if (ev.target === dlg) return fechar();
+  const b = ev.target.closest('[data-d]'); if (!b) return;
+  const a = b.dataset.d, id = Number(b.dataset.id);
+  if (a === 'fechar') return fechar();
+  if (a === 'revelar') return executar(b, async m => {
+    const r = await sql(`select lgpd_revelar(${inteiro(id)}, ${txt(m)}) as r`);
+    fechar(); mostrarRevelado(id, valor(r[0].r));
+  });
+  if (a === 'editar-motivo') return executar(b, async m => {
+    const r = await sql(`select lgpd_revelar(${inteiro(id)}, ${txt(m)}) as r`);
+    formEditar(id, valor(r[0].r));
+  });
+  if (a === 'salvar') return executar(b, async m => {
+    const dados = { resp_nome: $('#e-nome').value, resp_doc_tipo: $('#e-tipo').value, resp_doc: $('#e-doc').value,
+      resp_telefone: $('#e-tel').value, resp_email: $('#e-email').value, endereco: $('#e-end').value };
+    await sql(`select lgpd_salvar(${inteiro(id)}, ${txt(JSON.stringify(dados))}::jsonb, ${txt(m)})`);
+    fechar(); delete S.revelados[id]; await carregar();
+  });
+  if (a === 'exportar') return executar(b, async m => {
+    const r = await sql(`select lgpd_exportar(${inteiro(id)}, ${txt(m)}) as r`);
+    const json = JSON.stringify(valor(r[0].r), null, 2), c = comprador(id);
+    S.exportado = { json, nome: `dados-titular-${c.slug}.json` };
+    abrir(`<h2>Dados do titular</h2><p class="mut small">Cópia dos dados pessoais de ${esc(c.nome)}, para atender pedido de acesso ou portabilidade. Envie só para o próprio titular.</p>
+      <pre class="json" id="x-json">${esc(json)}</pre><div class="ferr" id="m-err"></div>
+      <div class="actions"><button type="button" data-d="copiar">Copiar</button><button type="button" data-d="baixar" id="x-baixar">Baixar arquivo</button><button type="button" class="primary" data-d="fechar">Fechar</button></div>`);
+    use('downloads').then(d => { if (!d) { const x = $('#x-baixar'); if (x) x.hidden = true; } });
+  });
+  if (a === 'copiar') {
+    try { await navigator.clipboard.writeText(S.exportado.json); b.textContent = 'Copiado'; }
+    catch { const r = document.createRange(); r.selectNodeContents($('#x-json')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = 'Selecionado: copie'; }
+    return;
+  }
+  if (a === 'baixar') {
+    const d = await use('downloads'); if (!d) return;
+    try { await d.save({ filename: S.exportado.nome, data: S.exportado.json }); } catch (e) { $('#m-err').textContent = 'O arquivo não foi salvo.'; }
+    return;
+  }
+  if (a === 'anonimizar') return executar(b, async m => {
+    await sql(`select lgpd_anonimizar(${inteiro(id)}, ${txt(m)}, ${txt($('#a-conf').value)})`);
+    fechar(); delete S.revelados[id]; await carregar();
+  });
+});
+
+document.addEventListener('click', ev => {
+  const t = ev.target.closest('[data-tab]');
+  if (t) {
+    S.tab = t.dataset.tab;
+    document.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x === t));
+    $('#v-lista').hidden = S.tab !== 'lista'; $('#v-registro').hidden = S.tab !== 'registro'; $('#v-lgpd').hidden = S.tab !== 'lgpd';
+    $('#v-ia').hidden = S.tab !== 'ia'; if (S.tab === 'ia') iaMedidor();
+    if (S.tab === 'registro') carregarLog();
+    return;
+  }
+  const f = ev.target.closest('[data-f]'); if (f) { S.filtro = f.dataset.f; return render(); }
+  const b = ev.target.closest('#lista [data-a]'); if (!b) return;
+  const id = Number(b.dataset.id), a = b.dataset.a, c = comprador(id);
+  if (a === 'ver') return pedirMotivo(id, 'Ver dados completos', 'O dado completo aparece por 60 segundos e o acesso fica registrado.', 'revelar');
+  if (a === 'ocultar') { clearInterval(timers[id]); delete S.revelados[id]; return render(); }
+  if (a === 'editar') return c.tem_dados
+    ? pedirMotivo(id, 'Corrigir dados', 'Para corrigir, os dados atuais são abertos e o acesso fica registrado.', 'editar-motivo', 'Correção a pedido do titular')
+    : formEditar(id, null);
+  if (a === 'exportar') return pedirMotivo(id, 'Exportar dados do titular', 'Use para atender pedido de acesso ou portabilidade (LGPD, art. 18, II e V).', 'exportar', 'Pedido do titular');
+  if (a === 'anonimizar') {
+    abrir(`<h2>Anonimizar dados do responsável</h2>
+      <p class="small">Apaga nome, documento, telefone, e-mail e endereço do responsável por <b>${esc(c.nome)}</b>. Não dá para desfazer. A barbearia, o plano e o histórico de uso continuam.</p>
+      <p class="mut small">Antes, confira se você precisa guardar algum dado por obrigação legal, como documentos fiscais (LGPD, art. 16, I).</p>
+      ${motivoCampo('Pedido de eliminação do titular')}
+      <label>Para confirmar, digite o endereço da barbearia: <b class="mono">${esc(c.slug)}</b><input id="a-conf" autocomplete="off" autocapitalize="off"></label>
+      <div class="ferr" id="m-err"></div>
+      <div class="actions"><button type="button" data-d="fechar">Cancelar</button><button type="button" class="danger" data-d="anonimizar" data-id="${id}">Anonimizar</button></div>`);
+  }
+});
+$('#busca').addEventListener('input', e => { S.busca = e.target.value; render(); });
+$('#atualizar').addEventListener('click', carregar);
+
+/* ---------- Assistente de IA ---------- */
+const IA = { sample: null, turns: [], props: [], chamadas: 0, maxBytes: 262144, ctl: null, ocupado: false, ferramentas: false };
+const REGRAS = `Você é o assistente do administrador de uma plataforma de fila online e gestão para barbearias no Brasil. Responda em português do Brasil, de forma curta e direta.
+Regras obrigatórias:
+1. Para saber qualquer dado, chame a ferramenta ler_sistema. Nunca invente barbearias, números ou datas.
+2. Você NÃO aplica mudanças. Para qualquer mudança, chame propor_mudanca uma vez por ação; o administrador vê a proposta e decide se aplica. Depois diga em uma frase o que foi proposto.
+3. Ações possíveis: plano (mudar o plano), liberar (somar dias pagos, ex.: pagamento por Pix fora do app), ativar (ativar/desativar barbearia), isentar (isentar de mensalidade), preco (preço mensal de um plano), aviso (aviso geral que aparece nos painéis de TODAS as barbearias; texto vazio remove), servicos_padrao (serviços e preços que barbearias NOVAS recebem ao serem criadas).
+4. É proibido alterar dados pessoais e o que cada barbeiro cadastrou: nome da barbearia, serviços e preços já definidos por ela, chave Pix, profissionais, clientes, despesas, senhas. Se pedirem isso, explique que só o dono da barbearia pode mudar, pelo painel dele.
+5. Você não vê faturamento das barbearias nem dados pessoais; se perguntarem, diga que esse painel não mostra isso por proteção de dados (LGPD).
+6. Em mudanças para várias barbearias, confira os ids na lista antes de propor.`;
+const FERRAMENTAS = () => [
+  { name: 'ler_sistema', description: 'Lê o estado atual: planos e preços, aviso geral, serviços padrão para novas barbearias e a lista de barbearias (id, endereço, nome, cidade, plano, isenta, ativa, situação, pago_ou_teste_ate, contagens de clientes, profissionais e atendimentos em 30 dias). Sem dados pessoais e sem faturamento.',
+    execute: async () => { const r = await sql('select ia_barbearias() as r'); IA.ultimo = valor(r[0].r); return IA.ultimo; } },
+  { name: 'propor_mudanca', description: 'Cria uma proposta de mudança para o administrador aprovar. Não aplica nada. Devolve o número da proposta. Use os ids exatos de ler_sistema.',
+    inputSchema: { type: 'object', required: ['acao', 'resumo'], properties: {
+      acao: { type: 'string', enum: ['plano', 'liberar', 'ativar', 'isentar', 'preco', 'aviso', 'servicos_padrao'] },
+      ids: { type: 'array', items: { type: 'integer' }, description: 'ids das barbearias (plano, liberar, ativar, isentar)' },
+      plano: { type: 'string', enum: ['basic', 'pro', 'expert'], description: 'para plano e preco' },
+      dias: { type: 'integer', description: 'liberar: dias a somar (1-400); aviso: por quantos dias fica no ar (1-365)' },
+      ativo: { type: 'boolean' }, isento: { type: 'boolean' },
+      preco: { type: 'number', description: 'preco: novo valor mensal em reais' },
+      texto: { type: 'string', description: 'aviso: texto de até 280 caracteres' },
+      servicos: { type: 'array', items: { type: 'object', properties: { nome: { type: 'string' }, preco: { type: 'number' } } } },
+      resumo: { type: 'string', description: 'uma frase em português explicando a mudança para o administrador' } } },
+    execute: input => criarProposta(input) }
+];
+function criarProposta(i){
+  const acao = String(i.acao || ''), d = {}, base = (IA.ultimo && IA.ultimo.barbearias) || [];
+  const ids = Array.isArray(i.ids) ? [...new Set(i.ids.map(Number).filter(Number.isInteger))] : [];
+  const precisaIds = ['plano', 'liberar', 'ativar', 'isentar'].includes(acao);
+  if (precisaIds) {
+    if (!ids.length) throw new Error('Informe os ids das barbearias. Chame ler_sistema antes.');
+    const faltam = ids.filter(id => !base.some(b => b.id === id));
+    if (faltam.length) throw new Error('ids inexistentes: ' + faltam.join(', ') + '. Chame ler_sistema e use os ids da lista.');
+    d.ids = ids;
+  }
+  if (acao === 'plano') { if (!['basic','pro','expert'].includes(i.plano)) throw new Error('plano inválido'); d.plano = i.plano; }
+  else if (acao === 'liberar') { const n = Number(i.dias); if (!(Number.isInteger(n) && n >= 1 && n <= 400)) throw new Error('dias de 1 a 400'); d.dias = n; }
+  else if (acao === 'ativar') { if (typeof i.ativo !== 'boolean') throw new Error('informe ativo true/false'); d.ativo = i.ativo; }
+  else if (acao === 'isentar') { if (typeof i.isento !== 'boolean') throw new Error('informe isento true/false'); d.isento = i.isento; }
+  else if (acao === 'preco') { const v = Number(i.preco); if (!['basic','pro','expert'].includes(i.plano) || !(v >= 1 && v <= 10000)) throw new Error('plano e preço (1 a 10000) obrigatórios'); d.plano = i.plano; d.preco = Math.round(v * 100) / 100; }
+  else if (acao === 'aviso') { const t = String(i.texto || '').trim(); if (t.length > 280) throw new Error('aviso com mais de 280 caracteres'); d.texto = t; if (i.dias) d.dias = Number(i.dias); }
+  else if (acao === 'servicos_padrao') {
+    const sv = Array.isArray(i.servicos) ? i.servicos.map(x => ({ nome: String(x.nome || '').trim(), preco: Number(x.preco) })) : [];
+    if (!sv.length || sv.length > 20 || sv.some(x => !x.nome || x.nome.length > 40 || !(x.preco >= 0 && x.preco <= 10000))) throw new Error('lista de serviços inválida');
+    d.servicos = sv;
+  } else throw new Error('Ação não permitida. Só: plano, liberar, ativar, isentar, preco, aviso, servicos_padrao.');
+  const p = { n: IA.props.length + 1, acao, dados: d, resumo: String(i.resumo || '').slice(0, 300), estado: 'pendente', nomes: ids.map(id => (base.find(b => b.id === id) || {}).nome) };
+  IA.props.push(p); renderProps();
+  return `Proposta #${p.n} criada. Aguardando o administrador tocar em Aplicar.`;
+}
+const ACAO_TXT = { plano: 'Mudar plano', liberar: 'Liberar dias', ativar: 'Ativar/desativar', isentar: 'Isenção', preco: 'Preço do plano', aviso: 'Aviso geral', servicos_padrao: 'Serviços padrão (novas)' };
+function detalhe(p){
+  const d = p.dados, quem = p.nomes.length ? `<div class="small mut">Barbearias: ${p.nomes.map(esc).join(', ')}</div>` : '';
+  let o = '';
+  if (p.acao === 'plano') o = `Novo plano: <b>${PLANO[d.plano]}</b>`;
+  if (p.acao === 'liberar') o = `Somar <b>${d.dias} dias</b> pagos`;
+  if (p.acao === 'ativar') o = d.ativo ? '<b>Ativar</b>' : '<b>Desativar</b> (clientes e barbeiros perdem o acesso)';
+  if (p.acao === 'isentar') o = d.isento ? '<b>Isentar</b> de mensalidade' : '<b>Tirar isenção</b>';
+  if (p.acao === 'preco') o = `${PLANO[d.plano]}: <b>R$ ${d.preco.toFixed(2).replace('.', ',')}</b>/mês (vale para novas assinaturas)`;
+  if (p.acao === 'aviso') o = d.texto ? `“${esc(d.texto)}”${d.dias ? ` por ${d.dias} dias` : ' sem prazo'}` : '<b>Remover</b> o aviso geral';
+  if (p.acao === 'servicos_padrao') o = d.servicos.map(x => `${esc(x.nome)} R$ ${x.preco.toFixed(2).replace('.', ',')}`).join(' · ');
+  return `<div>${o}</div>${quem}`;
+}
+function renderProps(){
+  $('#ia-props').innerHTML = IA.props.slice().reverse().map(p => `<article class="card prop ${p.estado}">
+    <div class="card-h"><b>#${p.n} · ${ACAO_TXT[p.acao]}</b><span class="pill ${p.estado === 'feita' ? 'p-ok' : p.estado === 'descartada' ? 'p-neutral' : 'p-warn'}">${p.estado === 'feita' ? 'Aplicada' : p.estado === 'descartada' ? 'Descartada' : 'Aguardando você'}</span></div>
+    <div class="small">${esc(p.resumo)}</div>${detalhe(p)}
+    <div class="ferr" id="perr-${p.n}"></div>
+    ${p.estado === 'pendente' ? `<div class="actions"><button type="button" class="primary" data-p="aplicar" data-n="${p.n}">Aplicar</button><button type="button" data-p="descartar" data-n="${p.n}">Descartar</button></div>` : ''}
+  </article>`).join('');
+}
+function iaBytes(){ return new TextEncoder().encode(REGRAS + IA.turns.map(t => t.content).join('')).length; }
+function iaMedidor(){
+  const b = iaBytes(), pct = Math.min(100, b / IA.maxBytes * 100), tok = Math.round(b / 4), max = Math.round(IA.maxBytes / 4);
+  $('#ia-uso').textContent = `${tok.toLocaleString('pt-BR')} de ~${max.toLocaleString('pt-BR')} tokens (${pct.toFixed(1).replace('.', ',')}%)`;
+  const barra = $('#ia-barra'); barra.style.width = Math.max(pct, 0.5) + '%'; barra.classList.toggle('alto', pct > 80);
+  $('#ia-chamadas').textContent = `${IA.chamadas} pedido(s) ao Claude nesta sessão · cada pedido usa o limite da sua conta`;
+}
+function bolha(cls, texto){ const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = texto; const c = $('#ia-chat'); const e = c.querySelector('.empty'); if (e) e.remove(); c.append(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
+const ERR_IA = {
+  not_granted: 'O Claude não foi liberado para este painel. Libere em Permissões, no menu do painel, e tente de novo.',
+  sampling_disabled: 'O Claude não está disponível para esta conta.', rate_limited: 'Você atingiu o limite de uso do Claude por agora. Tente de novo mais tarde.',
+  session_expired: 'Sua sessão expirou. Entre de novo no claude.ai.', prompt_too_large: 'A conversa ficou grande demais. Toque em Limpar conversa e peça de novo.',
+  tools_unavailable: 'Este aplicativo não permite que o assistente use as ferramentas. Abra o painel no claude.ai pelo navegador ou pelo app atualizado.',
+  refused: 'O Claude recusou esse pedido. Reformule.', empty_completion: 'O Claude não respondeu. Tente pedir de outro jeito.'
+};
+async function iaEnviar(texto){
+  texto = String(texto || '').trim(); if (!texto || IA.ocupado) return;
+  if (!IA.sample) return bolha('ia', 'O assistente só funciona com o painel aberto no claude.ai.');
+  if (!S.mcp) return bolha('ia', mensagem({ code: 'sem_mcp' }));
+  IA.ocupado = true; $('#ia-enviar').disabled = true; $('#ia-parar').hidden = false; $('#ia-msg').value = '';
+  bolha('eu', texto); IA.turns.push({ role: 'user', content: texto });
+  while (iaBytes() > IA.maxBytes * 0.8 && IA.turns.length > 2) IA.turns.splice(0, 2);   // tira as mensagens mais antigas
+  const out = bolha('ia pensando', 'Pensando…'); IA.ctl = new AbortController(); IA.chamadas++; iaMedidor();
+  try {
+    const r = await IA.sample([{ role: 'user', content: REGRAS }, ...IA.turns], {
+      cache: false, signal: IA.ctl.signal, tools: IA.ferramentas ? FERRAMENTAS() : undefined,
+      onText: ({ text }) => { out.classList.remove('pensando'); out.textContent = text; } });
+    out.classList.remove('pensando'); out.textContent = r.text + (r.truncated ? '\n\n(Resposta cortada: peça menos de uma vez.)' : '');
+    IA.turns.push({ role: 'assistant', content: r.text });
+    $('#ia-modelo').textContent = r.modelTierApplied ? `modelo: ${r.modelTierApplied}` : '';
+  } catch (e) {
+    out.classList.remove('pensando');
+    if (e && e.code === 'cancelled') out.textContent = (e.text || '') + '\n(parado)';
+    else out.textContent = (e && e.text ? e.text + '\n\n' : '') + (ERR_IA[e && e.code] || 'Falha de conexão com o Claude. Tente de novo.');
+    IA.turns.pop();
+  } finally { IA.ocupado = false; $('#ia-enviar').disabled = false; $('#ia-parar').hidden = true; iaMedidor(); }
+}
+$('#ia-enviar').addEventListener('click', () => iaEnviar($('#ia-msg').value));
+$('#ia-msg').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); iaEnviar($('#ia-msg').value); } });
+$('#ia-parar').addEventListener('click', () => IA.ctl && IA.ctl.abort());
+$('#ia-limpar').addEventListener('click', () => { IA.turns = []; $('#ia-chat').innerHTML = '<div class="empty small">Conversa limpa. As propostas abaixo continuam.</div>'; iaMedidor(); });
+$('#ia-sug').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b) iaEnviar(b.dataset.s); });
+$('#ia-props').addEventListener('click', async e => {
+  const b = e.target.closest('[data-p]'); if (!b) return;
+  const p = IA.props.find(x => x.n === Number(b.dataset.n)); if (!p || p.estado !== 'pendente') return;
+  if (b.dataset.p === 'descartar') { p.estado = 'descartada'; return renderProps(); }
+  b.disabled = true;
+  try {
+    await sql(`select ia_aplicar(${txt(p.acao)}, ${txt(JSON.stringify(p.dados))}::jsonb, ${txt(p.resumo || ACAO_TXT[p.acao])}) as n`);
+    p.estado = 'feita'; renderProps(); carregar();
+    IA.turns.push({ role: 'user', content: `[Aviso do painel: o administrador APLICOU a proposta #${p.n}.]` });
+  } catch (err) { b.disabled = false; const el = $('#perr-' + p.n); if (el) el.textContent = mensagem(err); }
+});
+
+const use = n => (window.claude && window.claude.use) ? window.claude.use(n).catch(() => null) : Promise.resolve(null);
+use('sample').then(async sm => {
+  IA.sample = sm;
+  if (!sm) { $('#ia-enviar').disabled = true; bolha('ia', 'O assistente só funciona com o painel aberto no claude.ai.'); return; }
+  const lim = await sm.limits().catch(() => null);
+  if (lim) { IA.maxBytes = lim.maxPromptBytes || IA.maxBytes; IA.ferramentas = !!lim.tools; }
+  if (lim && !lim.tools) bolha('ia', ERR_IA.tools_unavailable);
+  iaMedidor();
+});
+use('mcp').then(m => {
+  S.mcp = m;
+  if (!m) { aviso(mensagem({ code: 'sem_mcp' }), 'err'); $('#lista').innerHTML = `<div class="empty">${esc(mensagem({ code: 'sem_mcp' }))}</div>`; return; }
+  carregar();
+});
+</script>
