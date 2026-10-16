@@ -105,15 +105,15 @@ body{flex-direction:column;align-items:center;justify-content:flex-start}
 <div id="demo-bar">
   <div class="demo-top"><b>agendBarber 1.0 · DEMONSTRAÇÃO</b><span>dados fictícios · nada é salvo de verdade</span></div>
   <div class="demo-nav">
-    <button data-ir="#/andrezinho">Cliente</button><button data-ir="#/entrar">Entrar</button><button data-ir="#/planos">Planos</button>
-    <button data-ir="#/andrezinho/dono">Dono</button><button data-ir="#/andrezinho/barbeiro">Barbeiro</button><button data-ir="#/plataforma">Administrador</button>
+    <button data-ir="#/andrezinho">Cliente</button><button data-ir="#/planos">Planos</button>
+    <button data-ir="#/entrar">Entrar</button><button data-ir="#/plataforma">Administrador</button>
   </div>
   <details class="demo-senhas"><summary>Senhas de teste</summary>
-    <table><tr><th>Barbearia (endereço)</th><th>Dono</th><th>Barbeiro</th></tr>
-      <tr><td>Andrezinho · Expert, isenta<br><code>andrezinho</code></td><td><code>dono123</code></td><td><code>barb123</code></td></tr>
-      <tr><td>João · Pro, em teste<br><code>barbearia-do-joao</code></td><td><code>joao123</code></td><td><code>barbjoao1</code></td></tr>
-      <tr><td>Centro · Basic, vencida<br><code>barbearia-centro</code></td><td><code>centro123</code></td><td><code>barbcentro1</code></td></tr>
-      <tr><td>Administrador</td><td colspan="2"><code>admin123</code></td></tr></table>
+    <table><tr><th>Entrar: endereço da barbearia</th><th>Senha</th></tr>
+      <tr><td><code>andrezinho</code><br>com fila e histórico de exemplo</td><td><code>dono123</code></td></tr>
+      <tr><td><code>barbearia-do-joao</code><br>em teste grátis</td><td><code>joao123</code></td></tr>
+      <tr><td><code>barbearia-centro</code><br>mensalidade vencida</td><td><code>centro123</code></td></tr>
+      <tr><td>Administrador</td><td><code>admin123</code></td></tr></table>
     <p>No site real, o Pix, o WhatsApp e o Mercado Pago funcionam de verdade; aqui eles são simulados.</p>
   </details>
 </div>
@@ -1630,7 +1630,8 @@ const CONFIG = {
   PADRAO: "andrezinho",
   MARCA: "agendBarber",
   VERSAO: "1.0",
-  PLANOS_VENDA: ["basic"],   // planos oferecidos na página de venda e na aba Plano (1.0: só o Basic)
+  PLANOS_VENDA: ["basic"],
+  PAPEIS: { dono: "Barbeiro", barbeiro: "Ajudante" },   // como cada senha aparece nas telas   // planos oferecidos na página de venda e na aba Plano (1.0: só o Basic)
   // Regras da aba Clientes (rotina): margem 1.25 = "atrasado" depois de 25% além do intervalo habitual;
   // sumido = 2 vezes o intervalo habitual; cicloMinimo evita alarme falso em quem vem a cada poucos dias.
   ROTINA: { margem: 1.25, sumido: 2, cicloMinimo: 7, novoAteDias: 45 },
@@ -1738,7 +1739,7 @@ const ERROS = {
   fila_cheia: 'A fila está cheia no momento. Tente mais tarde.',
   bloqueado: 'Muitas tentativas erradas. Espere 10 minutos e tente de novo.',
   valor_invalido: 'Valor inválido.',
-  so_dono: 'Só o dono pode fazer isso.',
+  so_dono: 'Só o barbeiro titular pode fazer isso.',
   senha_repetida: 'Use uma senha diferente da outra.',
   senha_curta: 'Use pelo menos 6 caracteres.',
   nao_encontrado: 'Esse cliente já não está mais na fila.',
@@ -2103,13 +2104,13 @@ function adminView(need){
   S.need = need;
   S.token = SS.get(tokKey()); S.papel = SS.get(papelKey());
   if (!S.token) return loginView();
-  if (need === 'dono' && S.papel !== 'dono') return loginView('Esta área é só do dono.');
+  if (need === 'dono' && S.papel !== 'dono') return loginView('Esta área é só do barbeiro titular.');
   startAdmin();
 }
 
 function loginView(aviso = ''){
   $app.className = ''; $modal.innerHTML = '';
-  $app.innerHTML = `<div class="logo">🔒</div><h1>${S.need === 'dono' ? 'Área do dono' : 'Área do barbeiro'}</h1>
+  $app.innerHTML = `<div class="logo">🔒</div><h1>Área do barbeiro</h1>
     <p class="sub">${esc(SHOP.nome)}</p>
     <div class="card"><label>Senha</label><input id="pw" type="password" autocomplete="current-password">
     <div class="err" id="err">${esc(aviso)}</div><button class="btn" id="ok">Entrar</button></div>`;
@@ -2121,7 +2122,7 @@ function loginView(aviso = ''){
       if (!r || !r.length) return err.textContent = 'Senha incorreta.';
       if (S.need === 'dono' && r[0].out_papel !== 'dono') {
         rpc('adm_sair', {p_token: r[0].out_token}).catch(() => {});
-        return err.textContent = 'Esta área é só do dono.';
+        return err.textContent = 'Esta área é só do barbeiro titular.';
       }
       SS.set(tokKey(), r[0].out_token); SS.set(papelKey(), r[0].out_papel);
       adminView(S.need);
@@ -2193,7 +2194,7 @@ function bannerSituacao(c){
 function shell(){
   $app.innerHTML = `
     <div class="row"><h2 style="margin:0">💈 ${esc(SHOP.nome)}</h2>
-      <div><span class="tag">${S.papel === 'dono' ? 'Dono' : 'Barbeiro'} · ${NOME_PLANO[S.conta.plano] || ''}</span> <button class="btn ghost sm" data-a="logout">Sair</button></div></div>
+      <div><span class="tag">${CONFIG.PAPEIS[S.papel] || ''} · ${NOME_PLANO[S.conta.plano] || ''}</span> <button class="btn ghost sm" data-a="logout">Sair</button></div></div>
     ${bannerConta()}
     ${caixaLink('Link para os seus clientes', linkDe(SHOP.slug), 'Divulgue no WhatsApp, Instagram e no balcão. O cliente entra na fila sem cadastro.',
       `Entre na fila da ${SHOP.nome} pelo celular, sem esperar no balcão: ${linkDe(SHOP.slug)}`)}
@@ -2414,9 +2415,9 @@ function viewSenhas(){
   const bloco = (quem, titulo) => `<div class="card"><h2>${titulo}</h2>
     <label>Nova senha (mínimo 6 caracteres)</label><input id="np-${quem}" type="password" autocomplete="new-password">
     <button class="btn sm" style="margin-top:12px" data-a="trocar" data-quem="${quem}">Salvar</button></div>`;
-  return `${bloco('dono', 'Senha do dono (a sua)')}${bloco('barbeiro', 'Senha do barbeiro')}
+  return `${bloco('dono', 'Sua senha')}${bloco('barbeiro', 'Senha do ajudante (opcional)')}
     <div class="err" id="pw-msg"></div>
-    <p class="mut">Ao trocar a senha do barbeiro, ele precisa entrar de novo. As duas senhas devem ser diferentes.</p>`;
+    <p class="mut">Se alguém ajuda você na barbearia, crie uma senha para ele: o ajudante vê a fila e chama os clientes, mas não mexe em ajustes, senhas nem no plano. As duas senhas devem ser diferentes.</p>`;
 }
 
 /* ---------- Aba Equipe (Pro e Expert, só o dono) ---------- */
@@ -2865,11 +2866,11 @@ function entrarView(modo){
       ${modo === 'barbearia' ? `<label for="en-slug">Endereço da barbearia</label>
         <input id="en-slug" value="${esc(ultimo)}" placeholder="ex.: barbearia-do-joao" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username">
         <p class="mut" style="margin-top:6px;font-size:13px">É o final do link: ${esc(linkBase())}#/<b>endereço</b>. Pode colar o link inteiro.</p>` : ''}
-      <label for="en-pw">${modo === 'barbearia' ? 'Senha (do dono ou do barbeiro)' : 'Senha da plataforma'}</label>
+      <label for="en-pw">${modo === 'barbearia' ? 'Sua senha' : 'Senha da plataforma'}</label>
       <input id="en-pw" type="password" autocomplete="current-password">
       <div class="err" id="en-err"></div>
       <button class="btn" id="en-ok">Entrar</button></div>
-    ${modo === 'barbearia' ? '<p class="mut center" style="font-size:13px">Esqueceu a senha? O dono troca a do barbeiro na aba Senhas; a do dono, o administrador redefine.</p><p class="center" style="margin-top:14px"><a href="#/planos" style="color:var(--gold2)">Ainda não tem conta? Conheça os planos</a></p>' : ''}`;
+    ${modo === 'barbearia' ? '<p class="mut center" style="font-size:13px">Esqueceu a senha? Fale com o suporte do agendBarber para redefinir.</p><p class="center" style="margin-top:14px"><a href="#/planos" style="color:var(--gold2)">Ainda não tem conta? Conheça os planos</a></p>' : ''}`;
   $app.querySelectorAll('[data-m]').forEach(b => b.onclick = () => entrarView(b.dataset.m));
   const go = async () => {
     const err = document.getElementById('en-err'), pw = document.getElementById('en-pw').value, btn = document.getElementById('en-ok');
