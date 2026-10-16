@@ -290,6 +290,7 @@ begin
   if not found then o_sit := 'inexistente'; return; end if;
   o_vence := greatest(b.pago_ate, b.teste_ate);       -- greatest ignora valores nulos
   if b.isento then o_sit := 'isento';
+  elsif b.pago_ate is null and b.teste_ate is null then o_sit := 'pendente';   -- aguardando o primeiro pagamento
   elsif b.pago_ate > now() then o_sit := 'ativo';
   elsif b.teste_ate > now() then o_sit := 'teste';
   elsif o_vence > now() - interval '3 days' then o_sit := 'aviso';
@@ -311,7 +312,7 @@ begin
   if v.o_papel = 'plataforma' or v.o_barb is null then raise exception 'nao_autorizado'; end if;
   if p_dono and v.o_papel <> 'dono' then raise exception 'so_dono'; end if;
   if not exists (select 1 from barbearias b where b.id = v.o_barb and b.ativo) then raise exception 'barbearia_inativa'; end if;
-  if (select o_sit from _situacao(v.o_barb)) = 'bloqueado' then raise exception 'assinatura_vencida'; end if;
+  if (select o_sit from _situacao(v.o_barb)) in ('bloqueado','pendente') then raise exception 'assinatura_vencida'; end if;
   if _nivel(v.o_barb) < p_nivel then raise exception 'plano_insuficiente'; end if;
   return v.o_barb;
 end $$;
@@ -340,7 +341,7 @@ create or replace function _barb(p_slug text)
 returns bigint language sql stable security definer set search_path = public as $$
   select b.id from barbearias b
   where b.slug = lower(btrim(coalesce(p_slug, ''))) and b.ativo
-    and (select o_sit from _situacao(b.id)) <> 'bloqueado';
+    and (select o_sit from _situacao(b.id)) not in ('bloqueado','pendente');
 $$;
 
 -- barbearia ativa, mesmo vencida (para o login do dono e do barbeiro)
@@ -403,7 +404,7 @@ create or replace function info_barbearia(p_slug text)
 returns table (nome text, servicos jsonb, min_por_cliente int, tolerancia_min int, plano text, disponivel boolean)
 language sql stable security definer set search_path = public as $$
   select b.nome, b.servicos, b.min_por_cliente, b.tolerancia_min, b.plano,
-         (select o_sit from _situacao(b.id)) <> 'bloqueado'
+         (select o_sit from _situacao(b.id)) not in ('bloqueado','pendente')
   from barbearias b where b.id = _barb_login(p_slug);
 $$;
 
@@ -481,7 +482,7 @@ end $$;
 create or replace function adm_conta(p_token text)
 returns table (papel text, plano text, nivel int, isento boolean, situacao text, vence_em timestamptz,
                mp_status text, tem_assinatura boolean, cidade text, pix_tipo text, pix_chave text, pix_nome text,
-               aviso_global text)
+               aviso_global text, email text)
 language plpgsql security definer set search_path = public, extensions as $$
 declare v record;
 begin
@@ -491,7 +492,8 @@ begin
     select v.o_papel, b.plano, p.nivel, b.isento, s.o_sit, s.o_vence, b.mp_status, b.mp_assinatura_id is not null,
            b.cidade, b.pix_tipo, b.pix_chave, b.pix_nome,
            (select c.valor from config c where c.chave = 'aviso_global'
-              and coalesce((select (c2.valor)::timestamptz from config c2 where c2.chave = 'aviso_global_ate'), 'infinity') > now())
+              and coalesce((select (c2.valor)::timestamptz from config c2 where c2.chave = 'aviso_global_ate'), 'infinity') > now()),
+           case when v.o_papel = 'dono' then b.resp_email end
     from barbearias b join planos p on p.codigo = b.plano, _situacao(b.id) s
     where b.id = v.o_barb and b.ativo;
   if not found then raise exception 'barbearia_inativa'; end if;
@@ -1223,7 +1225,9 @@ revoke execute on function ia_aplicar(text, jsonb, text) from public, anon, auth
 -- =====================================================================
 alter table barbearias
   add column if not exists origem text not null default 'plataforma' check (origem in ('plataforma','autocadastro')),
-  add column if not exists aceite_privacidade_em timestamptz;
+  add column if not exists aceite_privacidade_em timestamptz,
+  add column if not exists auth_uid uuid;
+create unique index if not exists barbearias_resp_email_unico on barbearias (lower(resp_email)) where resp_email is not null;
 
 create or replace function cadastro_publico(p jsonb)
 returns table (slug text, token text)
@@ -1240,7 +1244,13 @@ declare
   v_pb text := coalesce(nullif(p->>'senha_barbeiro', ''), encode(extensions.gen_random_bytes(12), 'hex'));
   v_cidade text := nullif(btrim(coalesce(p->>'cidade', '')), '');
   v_id bigint;
+  v_uid uuid := auth.uid();
+  v_email_ok text;
 begin
+  -- o e-mail precisa ter sido confirmado com o código enviado pelo Supabase Auth
+  if v_uid is null then raise exception 'email_nao_confirmado'; end if;
+  select lower(u.email) into v_email_ok from auth.users u where u.id = v_uid and u.email_confirmed_at is not null;
+  if v_email_ok is null then raise exception 'email_nao_confirmado'; end if;
   if coalesce((p->>'aceite')::boolean, false) is not true then raise exception 'aceite_obrigatorio'; end if;
   if (select count(*) from barbearias where origem = 'autocadastro' and criado_em > now() - interval '1 hour') >= 20 then
     raise exception 'muitos_cadastros';
@@ -1249,6 +1259,8 @@ begin
   if length(v_resp) < 5 or position(' ' in v_resp) = 0 then raise exception 'nome_completo'; end if;
   if v_tel !~ '^\d{10,11}$' then raise exception 'telefone_invalido'; end if;
   if v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'email_invalido'; end if;
+  if v_email <> v_email_ok then raise exception 'email_diferente'; end if;
+  if exists (select 1 from barbearias b where lower(b.resp_email) = v_email) then raise exception 'email_em_uso'; end if;
   if not exists (select 1 from planos where codigo = v_plano) then raise exception 'plano_invalido'; end if;
   if coalesce(length(v_pd), 0) not between 6 and 64 or coalesce(length(v_pb), 0) not between 6 and 64 then raise exception 'senha_curta'; end if;
   if v_pd = v_pb then raise exception 'senha_repetida'; end if;
@@ -1261,12 +1273,30 @@ begin
   v_slug := v_base;
   while exists (select 1 from barbearias b where b.slug = v_slug) loop v_i := v_i + 1; v_slug := v_base || '-' || v_i; end loop;
   insert into barbearias (slug, nome, pin_dono, pin_barbeiro, plano, teste_ate, servicos, cidade,
-                          resp_nome, resp_telefone, resp_email, resp_atualizado_em, origem, aceite_privacidade_em)
-  values (v_slug, v_nome, crypt(v_pd, gen_salt('bf')), crypt(v_pb, gen_salt('bf')), v_plano, now() + interval '2 days',
+                          resp_nome, resp_telefone, resp_email, resp_atualizado_em, origem, aceite_privacidade_em, auth_uid)
+  values (v_slug, v_nome, crypt(v_pd, gen_salt('bf')), crypt(v_pb, gen_salt('bf')), v_plano, null,   -- sem teste: libera ao pagar
           coalesce((select valor::jsonb from config where chave = 'servicos_padrao'),
                    '[{"nome":"Corte","preco":35},{"nome":"Barba","preco":25},{"nome":"Corte + Barba","preco":55}]'::jsonb),
-          coalesce(v_cidade, 'Rio de Janeiro'), v_resp, v_tel, v_email, now(), 'autocadastro', now())
+          coalesce(v_cidade, 'Rio de Janeiro'), v_resp, v_tel, v_email, now(), 'autocadastro', now(), v_uid)
   returning id into v_id;
   perform _lgpd_log('cadastro feito pelo próprio titular (aceitou a política de privacidade)', v_id, 'autocadastro');
   return query select v_slug, _novo_token('dono', v_id);
+end $$;
+
+
+-- entrar com e-mail e senha (o e-mail do responsável identifica a barbearia)
+create or replace function adm_login_email(p_email text, p_pin text)
+returns table (out_papel text, out_token text, out_slug text)
+language plpgsql security definer set search_path = public, extensions as $$
+declare b record; v_papel text;
+begin
+  select id, slug, pin_dono, pin_barbeiro into b from barbearias
+   where lower(resp_email) = lower(btrim(coalesce(p_email, ''))) and ativo;
+  if b.id is null then raise exception 'conta_nao_encontrada'; end if;
+  perform _bloqueio(b.id);
+  if p_pin is not null and b.pin_dono = crypt(p_pin, b.pin_dono) then v_papel := 'dono';
+  elsif p_pin is not null and b.pin_barbeiro = crypt(p_pin, b.pin_barbeiro) then v_papel := 'barbeiro';
+  end if;
+  if v_papel is null then perform _falhou(b.id); return; end if;
+  return query select v_papel, _novo_token(v_papel, b.id), b.slug;
 end $$;
