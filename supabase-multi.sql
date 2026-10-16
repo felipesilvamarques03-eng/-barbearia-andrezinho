@@ -61,10 +61,12 @@ create table if not exists planos (
   nivel int not null unique
 );
 insert into planos (codigo, nome, preco, nivel) values
-  ('basic',  'Basic',  19.90, 1),
+  ('basic',  'Basic',  15.00, 1),
   ('pro',    'Pro',    39.90, 2),
   ('expert', 'Expert', 69.90, 3)
 on conflict (codigo) do nothing;
+-- agendBarber 1.0: o Basic sai por R$ 15,00 (só ajusta se ainda estiver no preço antigo)
+update planos set preco = 15.00 where codigo = 'basic' and preco = 19.90;
 
 -- ---------- barbearias ----------
 create table if not exists barbearias (
@@ -1232,8 +1234,10 @@ declare
   v_resp text := btrim(coalesce(p->>'resp_nome', ''));
   v_tel text := regexp_replace(coalesce(p->>'resp_telefone', ''), '\D', '', 'g');
   v_email text := lower(btrim(coalesce(p->>'resp_email', '')));
-  v_plano text := coalesce(p->>'plano', 'pro');
-  v_pd text := p->>'senha_dono'; v_pb text := p->>'senha_barbeiro';
+  v_plano text := 'basic';   -- agendBarber 1.0: só o plano Basic está à venda
+  v_pd text := p->>'senha_dono';
+  -- 1.0: o barbeiro cria uma senha só; a segunda (de ajudante) é sorteada e pode ser trocada na aba Senhas
+  v_pb text := coalesce(nullif(p->>'senha_barbeiro', ''), encode(extensions.gen_random_bytes(12), 'hex'));
   v_cidade text := nullif(btrim(coalesce(p->>'cidade', '')), '');
   v_id bigint;
 begin

@@ -1366,6 +1366,9 @@ const CONFIG = {
   // Barbearia aberta pelos links antigos, sem nome no endereço (/, /#/barbeiro, /#/dono).
   // Nome, serviços, preços e tempos de cada barbearia ficam no banco: o dono ajusta na aba Ajustes.
   PADRAO: "andrezinho",
+  MARCA: "agendBarber",
+  VERSAO: "1.0",
+  PLANOS_VENDA: ["basic"],   // planos oferecidos na página de venda e na aba Plano (1.0: só o Basic)
   // Regras da aba Clientes (rotina): margem 1.25 = "atrasado" depois de 25% além do intervalo habitual;
   // sumido = 2 vezes o intervalo habitual; cicloMinimo evita alarme falso em quem vem a cada poucos dias.
   ROTINA: { margem: 1.25, sumido: 2, cicloMinimo: 7, novoAteDias: 45 },
@@ -1562,8 +1565,8 @@ async function route(){
   $app.onclick = null; $modal.onclick = null; $modal.innerHTML = ''; $app.className = '';
   const minha = ++rotaAtual, r = lerRota();
   if (r.plat) { document.title = 'Plataforma · Fila da Barbearia'; return platView(); }
-  if (r.entrar) { document.title = 'Entrar · Fila da Barbearia'; return entrarView(); }
-  if (r.planos) { document.title = 'Planos · Fila da Barbearia'; return planosView(); }
+  if (r.entrar) { document.title = 'Entrar · ' + CONFIG.MARCA; return entrarView(); }
+  if (r.planos) { document.title = CONFIG.MARCA + ' · fila online para barbearias'; return planosView(); }
   if (!SHOP || SHOP.slug !== r.slug) {
     SHOP = null;
     $app.innerHTML = '<div class="logo">💈</div><p class="sub">Carregando…</p>';
@@ -1601,7 +1604,7 @@ function homeView(){
       ? `<p class="sub">Sem fila no balcão. Entre na lista e acompanhe pelo celular.</p>
          <button class="btn" id="go">Entrar na Fila / Agendar</button>`
       : `<p class="sub">A fila online está temporariamente indisponível. Fale direto com a barbearia.</p>`}`;
-  $app.insertAdjacentHTML('beforeend', `<p class="center" style="margin-top:40px"><a href="#/entrar" class="mut" style="color:var(--mut)">Sou da barbearia · Entrar</a></p>`);
+  $app.insertAdjacentHTML('beforeend', `<p class="center" style="margin-top:40px"><a href="#/entrar" class="mut" style="color:var(--mut)">Sou da barbearia · Entrar</a></p><p class="center mut" style="margin-top:6px;font-size:12px">${CONFIG.MARCA}</p>`);
   const go = document.getElementById('go'); if (go) go.onclick = formView;
 }
 
@@ -2357,7 +2360,7 @@ function viewPlano(){
       ${c.tem_assinatura ? linhaR('Cobrança automática', c.mp_status === 'authorized' ? 'Ativa no Mercado Pago' : esc(c.mp_status || '—')) : ''}</div>
     <label for="mp-email">E-mail da sua conta no Mercado Pago</label><input id="mp-email" type="email" autocomplete="email" placeholder="voce@email.com">
     <div class="err" id="mp-err"></div>
-    <div class="planos" style="margin-top:12px">${S.planos.map(p => `<div class="plano${p.codigo === c.plano ? ' atual' : ''}">
+    <div class="planos" style="margin-top:12px">${S.planos.filter(p => CONFIG.PLANOS_VENDA.includes(p.codigo) || p.codigo === c.plano).map(p => `<div class="plano${p.codigo === c.plano ? ' atual' : ''}">
       <div class="row"><b style="font-size:18px">${esc(p.nome)}</b><span class="preco">${brl(p.preco)}<small class="mut">/mês</small></span></div>
       <ul>${(RECURSOS[p.codigo] || []).map(x => `<li>${x}</li>`).join('')}</ul>
       <button class="btn" data-a="assinar" data-p="${p.codigo}">${p.codigo === c.plano && c.mp_status === 'authorized' ? 'Seu plano atual' : `Assinar ${esc(p.nome)}`}</button></div>`).join('')}</div>
@@ -2543,16 +2546,17 @@ document.addEventListener('click', async e => {
 /* =====================================================================
    PLANOS: página pública de venda e cadastro da barbearia
    ===================================================================== */
-const PUB = { plano: 'pro', planos: [] };
+const PUB = { plano: CONFIG.PLANOS_VENDA[0], planos: [] };
 async function planosView(){
   $app.className = ''; $app.onclick = null;
   $app.innerHTML = '<div class="logo">💈</div><p class="sub">Carregando os planos…</p>';
-  try { PUB.planos = await rpc('planos_lista') || []; } catch (e) { $app.innerHTML = `<p class="err">${esc(msgErro(e))}</p>`; return; }
+  try { PUB.planos = (await rpc('planos_lista') || []).filter(p => CONFIG.PLANOS_VENDA.includes(p.codigo)); } catch (e) { $app.innerHTML = `<p class="err">${esc(msgErro(e))}</p>`; return; }
   const RECS = {
     basic: ['Fila online pelo celular, sem app', 'Chamada pelo WhatsApp com mensagem pronta', 'QR Code Pix no fim do corte'],
     pro: ['Tudo do Basic', 'Faturamento do dia, semana e mês', 'Rotina dos clientes e "chamar de volta"', 'Barbeiros por comissão, aluguel de cadeira ou salário'],
     expert: ['Tudo do Pro', 'Despesas da barbearia', 'Relatórios mensais e anuais com lucro', 'Acerto de cada profissional'] };
-  $app.innerHTML = `<div class="logo">💈</div><h1>Fila online para sua barbearia</h1>
+  $app.innerHTML = `<div class="logo">💈</div><h1>${CONFIG.MARCA}</h1>
+    <p class="sub" style="margin-bottom:8px">Fila online para sua barbearia · versão ${CONFIG.VERSAO}</p>
     <p class="sub">Seu cliente entra na fila pelo celular e você chama pelo WhatsApp. Teste grátis por 2 dias, sem cartão.</p>
     <div class="planos-pub">${PUB.planos.map(p => `<button type="button" class="plano-pub${p.codigo === PUB.plano ? ' on' : ''}" data-plano="${p.codigo}">
       <div class="row"><b style="font-size:18px">${esc(p.nome)}</b><span class="preco">${brl(p.preco)}<small class="mut">/mês</small></span></div>
@@ -2563,8 +2567,7 @@ async function planosView(){
       <label for="c-resp">Seu nome completo</label><input id="c-resp" maxlength="100" autocomplete="name">
       <label for="c-tel">Seu WhatsApp</label><input id="c-tel" inputmode="numeric" placeholder="(21) 99999-9999" autocomplete="tel">
       <label for="c-email">Seu e-mail</label><input id="c-email" type="email" autocomplete="email">
-      <label for="c-pd">Crie a senha do dono (mínimo 6)</label><input id="c-pd" type="password" autocomplete="new-password">
-      <label for="c-pb">Crie a senha do barbeiro (mínimo 6, diferente)</label><input id="c-pb" type="password" autocomplete="new-password">
+      <label for="c-pd">Crie sua senha de acesso (mínimo 6)</label><input id="c-pd" type="password" autocomplete="new-password">
       <details class="priv"><summary>Política de privacidade (resumo)</summary>
         <p><b>Quais dados:</b> nome da barbearia, cidade, seu nome, WhatsApp e e-mail. As senhas são guardadas embaralhadas e ninguém consegue lê-las.</p>
         <p><b>Para quê:</b> criar e manter a sua conta, falar com você sobre a assinatura e cobrar a mensalidade. Base legal: execução de contrato (Lei 13.709/2018, art. 7º, V).</p>
@@ -2583,13 +2586,12 @@ async function planosView(){
     const g = id => document.getElementById(id), err = g('c-err'), btn = g('c-ok'); err.textContent = '';
     const d = { nome_barbearia: g('c-nome').value.trim(), cidade: g('c-cidade').value.trim(), resp_nome: g('c-resp').value.trim(),
       resp_telefone: digits(g('c-tel').value), resp_email: g('c-email').value.trim(), plano: PUB.plano,
-      senha_dono: g('c-pd').value, senha_barbeiro: g('c-pb').value, aceite: g('c-aceite').checked };
+      senha_dono: g('c-pd').value, aceite: g('c-aceite').checked };
     if (d.nome_barbearia.length < 2) return err.textContent = 'Informe o nome da barbearia.';
     if (d.resp_nome.split(/\s+/).length < 2) return err.textContent = ERROS.nome_completo;
     if (!/^\d{10,11}$/.test(d.resp_telefone)) return err.textContent = ERROS.telefone_invalido_resp;
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.resp_email)) return err.textContent = ERROS.email_invalido;
-    if (d.senha_dono.length < 6 || d.senha_barbeiro.length < 6) return err.textContent = ERROS.senha_curta;
-    if (d.senha_dono === d.senha_barbeiro) return err.textContent = ERROS.senha_repetida;
+    if (d.senha_dono.length < 6) return err.textContent = ERROS.senha_curta;
     if (!d.aceite) return err.textContent = ERROS.aceite_obrigatorio;
     btn.disabled = true; btn.textContent = 'Criando sua barbearia…';
     try {
@@ -2616,7 +2618,7 @@ function entrarView(modo){
   modo = modo || 'barbearia';
   $app.className = ''; $app.onclick = null;
   const ultimo = LS.get('bb_ultimo_slug', '');
-  $app.innerHTML = `<div class="logo">💈</div><h1>Entrar</h1>
+  $app.innerHTML = `<div class="logo">💈</div><h1>Entrar</h1><p class="sub" style="margin:4px 0 0">${CONFIG.MARCA} · versão ${CONFIG.VERSAO}</p>
     <p class="sub">Acesso das barbearias e do administrador. Clientes não precisam de login: basta abrir o link da barbearia.</p>
     <div class="seg" style="justify-content:center;margin-bottom:14px">
       <button data-m="barbearia" class="${modo === 'barbearia' ? 'on' : ''}">Barbearia</button>
@@ -2741,7 +2743,7 @@ async function platPainel(){
       <p class="mut" id="n-prev" style="margin-top:6px;word-break:break-all"></p>
       <label for="n-pd">Senha inicial do dono (mínimo 6)</label><input id="n-pd" autocomplete="off">
       <label for="n-pb">Senha inicial do barbeiro (mínimo 6, diferente da do dono)</label><input id="n-pb" autocomplete="off">
-      <label for="n-plano">Plano (começa com 2 dias grátis)</label><select id="n-plano">${opPlano('pro')}</select>
+      <label for="n-plano">Plano (começa com 2 dias grátis)</label><select id="n-plano">${opPlano(CONFIG.PLANOS_VENDA[0])}</select>
       <div class="err" id="n-err"></div>
       <button class="btn" data-p="criar">Criar barbearia</button></div>
     <div class="card"><h2>Preços dos planos</h2>
